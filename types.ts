@@ -1,3 +1,4 @@
+
 export enum OrderStatus {
   PENDING = 'PENDING',
   DELIVERED = 'DELIVERED',
@@ -7,7 +8,14 @@ export enum OrderStatus {
 export enum PaymentMethod {
   CASH = 'CASH',
   ONLINE = 'ONLINE',
-  SPLIT = 'SPLIT'
+  SPLIT = 'SPLIT',
+  NONE = 'NONE'
+}
+
+export enum PaymentStatus {
+  PAID = 'PAID',
+  UNPAID = 'UNPAID',
+  PARTIAL = 'PARTIAL'
 }
 
 export interface Product {
@@ -30,9 +38,11 @@ export interface OrderItem {
 }
 
 export interface PaymentDetails {
+  method: PaymentMethod;
   cashAmount: number;
   onlineAmount: number;
-  isPaid: boolean;
+  totalPaid: number;
+  status: PaymentStatus;
 }
 
 export interface Order {
@@ -45,6 +55,7 @@ export interface Order {
   totalAmount: number;
   status: OrderStatus;
   paymentDetails: PaymentDetails;
+  note?: string;
 }
 
 export interface DailyStats {

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { LucideIcon } from 'lucide-react';
 
@@ -48,13 +49,14 @@ export const Card: React.FC<{ children: React.ReactNode; className?: string }> =
   </div>
 );
 
-export const Badge: React.FC<{ children: React.ReactNode; color?: 'gray' | 'red' | 'green' | 'blue' | 'yellow' }> = ({ children, color = 'gray' }) => {
+export const Badge: React.FC<{ children: React.ReactNode; color?: 'gray' | 'red' | 'green' | 'blue' | 'yellow' | 'orange' }> = ({ children, color = 'gray' }) => {
   const colors = {
     gray: 'bg-gray-100 text-gray-800',
     red: 'bg-red-100 text-red-800',
     green: 'bg-emerald-100 text-emerald-800',
     blue: 'bg-blue-100 text-blue-800',
     yellow: 'bg-yellow-100 text-yellow-800',
+    orange: 'bg-orange-100 text-orange-800',
   };
   return (
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colors[color]}`}>
@@ -97,6 +99,16 @@ export const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement> & { lab
   <div className="mb-2">
     {label && <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>}
     <input 
+      className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-500 focus:ring-brand-500 sm:text-sm border p-2 ${className}`} 
+      {...props} 
+    />
+  </div>
+);
+
+export const Textarea: React.FC<React.TextareaHTMLAttributes<HTMLTextAreaElement> & { label?: string }> = ({ label, className = '', ...props }) => (
+  <div className="mb-2">
+    {label && <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>}
+    <textarea 
       className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-500 focus:ring-brand-500 sm:text-sm border p-2 ${className}`} 
       {...props} 
     />

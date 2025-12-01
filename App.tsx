@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { Product, Order, OrderStatus } from './types';
+import { Product, Order, OrderStatus, PaymentStatus, PaymentMethod } from './types';
 import * as Storage from './services/storage';
 import { Dashboard } from './components/Dashboard';
 import { ProductManager } from './components/ProductManager';
@@ -32,6 +33,29 @@ const App: React.FC = () => {
     setTimeout(() => setToast(null), 3000);
   };
 
+  // --- Helper: Stock Logic ---
+  // Deduct stock for items in an order
+  const deductStockForOrder = (currentProducts: Product[], orderItems: any[]): Product[] => {
+    return currentProducts.map(p => {
+      const orderItem = orderItems.find(item => item.productId === p.id && !item.isCustom);
+      if (orderItem) {
+        return { ...p, quantity: p.quantity - orderItem.quantity };
+      }
+      return p;
+    });
+  };
+
+  // Restore stock (add back)
+  const restoreStockForOrder = (currentProducts: Product[], orderItems: any[]): Product[] => {
+    return currentProducts.map(p => {
+      const orderItem = orderItems.find(item => item.productId === p.id && !item.isCustom);
+      if (orderItem) {
+        return { ...p, quantity: p.quantity + orderItem.quantity };
+      }
+      return p;
+    });
+  };
+
   // --- Actions ---
 
   const handleAddProduct = (product: Product) => {
@@ -57,37 +81,53 @@ const App: React.FC = () => {
     }
   };
 
-  const handleAddOrder = (order: Order) => {
-    // 1. Save Order
-    const updatedOrders = [order, ...orders];
-    setOrders(updatedOrders);
-    Storage.saveOrders(updatedOrders);
+  const handleSaveOrder = (order: Order, isEdit: boolean) => {
+    let updatedProducts = [...products];
 
-    // 2. Update Stock (Reduce Quantity) - ONLY for stock items, ignore Custom items
-    const updatedProducts = products.map(p => {
-      // Find matching item in order that is NOT custom
-      const orderItem = order.items.find(item => item.productId === p.id && !item.isCustom);
-      if (orderItem) {
-        return { ...p, quantity: p.quantity - orderItem.quantity };
+    if (isEdit) {
+      // 1. Find old order
+      const oldOrder = orders.find(o => o.id === order.id);
+      if (oldOrder) {
+        // 2. Restore stock from old order items
+        updatedProducts = restoreStockForOrder(updatedProducts, oldOrder.items);
       }
-      return p;
-    });
+      // 3. Update Order List
+      const updatedOrders = orders.map(o => o.id === order.id ? order : o);
+      setOrders(updatedOrders);
+      Storage.saveOrders(updatedOrders);
+      showToast('Order updated');
+    } else {
+      // Create New
+      const updatedOrders = [order, ...orders];
+      setOrders(updatedOrders);
+      Storage.saveOrders(updatedOrders);
+      showToast('Order created');
+    }
+
+    // 4. Deduct stock for new items
+    updatedProducts = deductStockForOrder(updatedProducts, order.items);
+    
     setProducts(updatedProducts);
     Storage.saveProducts(updatedProducts);
-    
-    showToast('Order created & stock updated');
-    setActiveTab('ORDERS'); // Switch to view
+    setActiveTab('ORDERS');
   };
 
-  const handleUpdateOrderStatus = (orderId: string, status: OrderStatus, payment?: { cash: number, online: number }) => {
+  const handleUpdateOrderStatus = (orderId: string, status: OrderStatus, paymentDetails?: any, note?: string) => {
     const updatedOrders = orders.map(o => {
       if (o.id === orderId) {
         let updates: Partial<Order> = { status };
-        if (status === OrderStatus.COMPLETED && payment) {
+        
+        if (note) {
+          updates.note = note;
+        }
+
+        if (status === OrderStatus.COMPLETED && paymentDetails) {
           updates.paymentDetails = {
-            cashAmount: payment.cash,
-            onlineAmount: payment.online,
-            isPaid: true
+            method: paymentDetails.method,
+            cashAmount: paymentDetails.method === PaymentMethod.CASH ? paymentDetails.amountPaid : 0,
+            onlineAmount: paymentDetails.method === PaymentMethod.ONLINE ? paymentDetails.amountPaid : 0,
+            totalPaid: paymentDetails.amountPaid,
+            status: paymentDetails.status
           };
         }
         return { ...o, ...updates };
@@ -96,18 +136,15 @@ const App: React.FC = () => {
     });
     setOrders(updatedOrders);
     Storage.saveOrders(updatedOrders);
-    showToast(`Order marked as ${status}`);
+    showToast(`Order updated: ${status}`);
   };
 
   const handleDeleteOrder = (id: string) => {
-    if (confirm('Delete this order? Stock will be restored for physical products.')) {
+    if (confirm('Delete this order? Stock will be restored.')) {
       const order = orders.find(o => o.id === id);
       if (order) {
-         // Restore stock (Only for non-custom items)
-         const updatedProducts = products.map(p => {
-            const item = order.items.find(i => i.productId === p.id && !i.isCustom);
-            return item ? { ...p, quantity: p.quantity + item.quantity } : p;
-         });
+         // Restore stock
+         const updatedProducts = restoreStockForOrder(products, order.items);
          setProducts(updatedProducts);
          Storage.saveProducts(updatedProducts);
 
@@ -193,7 +230,7 @@ const App: React.FC = () => {
             <OrderManager 
               orders={orders}
               products={products}
-              onAddOrder={handleAddOrder}
+              onSaveOrder={handleSaveOrder}
               onUpdateStatus={handleUpdateOrderStatus}
               onDeleteOrder={handleDeleteOrder}
             />
