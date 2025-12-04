@@ -49,13 +49,22 @@ export interface Order {
   id: string;
   customerName: string;
   customerPhone: string;
-  date: string; // ISO string
+  date: string; // ISO string (Creation Date)
+  completedAt?: string; // ISO string (Completion Date)
   items: OrderItem[];
   discount: number;
   totalAmount: number;
   status: OrderStatus;
   paymentDetails: PaymentDetails;
   note?: string;
+}
+
+export interface Expense {
+  id: string;
+  description: string;
+  amount: number;
+  date: string; // ISO string
+  category?: string; 
 }
 
 export interface DailyStats {
@@ -67,4 +76,17 @@ export interface DailyStats {
   revenueOnline: number;
   totalRevenue: number;
   totalProfit: number;
+}
+
+// AI Assistant Types
+export interface AIAction {
+  intent: string;
+  parameters?: Record<string, any>;
+  item?: string;
+  quantity?: number;
+}
+
+export interface AIResponse {
+  voiceResponse: string;
+  actionJSON: AIAction;
 }

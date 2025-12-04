@@ -1,8 +1,11 @@
-import { Product, Order, OrderStatus } from '../types';
+
+import { Product, Order, OrderStatus, Expense } from '../types';
 
 const STORAGE_KEYS = {
   PRODUCTS: 'print_bazar_products',
   ORDERS: 'print_bazar_orders',
+  ROUGH_WORK: 'print_bazar_rough_work',
+  EXPENSES: 'print_bazar_expenses',
 };
 
 // Initial Seed Data
@@ -14,34 +17,83 @@ const SEED_PRODUCTS: Product[] = [
 ];
 
 export const getProducts = (): Product[] => {
-  const stored = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
-  if (!stored) {
-    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(SEED_PRODUCTS));
+  try {
+    const stored = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
+    if (!stored) {
+      localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(SEED_PRODUCTS));
+      return SEED_PRODUCTS;
+    }
+    return JSON.parse(stored);
+  } catch (e) {
+    console.error("Error parsing products from storage", e);
     return SEED_PRODUCTS;
   }
-  return JSON.parse(stored);
 };
 
 export const saveProducts = (products: Product[]) => {
-  localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+  try {
+    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+  } catch (e) {
+    console.error("Error saving products", e);
+  }
 };
 
 export const getOrders = (): Order[] => {
-  const stored = localStorage.getItem(STORAGE_KEYS.ORDERS);
-  return stored ? JSON.parse(stored) : [];
+  try {
+    const stored = localStorage.getItem(STORAGE_KEYS.ORDERS);
+    return stored ? JSON.parse(stored) : [];
+  } catch (e) {
+    console.error("Error parsing orders from storage", e);
+    return [];
+  }
 };
 
 export const saveOrders = (orders: Order[]) => {
-  localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(orders));
+  try {
+    localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(orders));
+  } catch (e) {
+    console.error("Error saving orders", e);
+  }
 };
 
 export const updateProductStock = (productId: string, quantityChange: number) => {
-  const products = getProducts();
-  const updated = products.map(p => {
-    if (p.id === productId) {
-      return { ...p, quantity: p.quantity + quantityChange };
-    }
-    return p;
-  });
-  saveProducts(updated);
+  try {
+    const products = getProducts();
+    const updated = products.map(p => {
+      if (p.id === productId) {
+        return { ...p, quantity: p.quantity + quantityChange };
+      }
+      return p;
+    });
+    saveProducts(updated);
+  } catch (e) {
+    console.error("Error updating stock", e);
+  }
+};
+
+export const getRoughWork = (): string => {
+  return localStorage.getItem(STORAGE_KEYS.ROUGH_WORK) || '';
+};
+
+export const saveRoughWork = (content: string) => {
+  localStorage.setItem(STORAGE_KEYS.ROUGH_WORK, content);
+};
+
+// Expense Methods
+export const getExpenses = (): Expense[] => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEYS.EXPENSES);
+    return stored ? JSON.parse(stored) : [];
+  } catch (e) {
+    console.error("Error parsing expenses", e);
+    return [];
+  }
+};
+
+export const saveExpenses = (expenses: Expense[]) => {
+  try {
+    localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(expenses));
+  } catch (e) {
+    console.error("Error saving expenses", e);
+  }
 };

@@ -1,8 +1,10 @@
+
 import React, { useMemo, useState } from 'react';
 import { Order, OrderStatus } from '../types';
-import { Card, Button, Input } from './ui/Common';
-import { DollarSign, ShoppingBag, Truck, TrendingUp, Calendar, Filter } from 'lucide-react';
+import { Card } from './ui/Common';
+import { DollarSign, ShoppingBag, Truck, TrendingUp, Calendar, Filter, ArrowUpRight } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, CartesianGrid } from 'recharts';
+import { motion } from 'framer-motion';
 
 interface DashboardProps {
   orders: Order[];
@@ -15,7 +17,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ orders }) => {
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
 
-  const filteredOrders = useMemo(() => {
+  const filteredStats = useMemo(() => {
     const now = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     
@@ -33,7 +35,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ orders }) => {
         endDate.setHours(23, 59, 59, 999);
         break;
       case 'WEEK':
-        // Start of current week (Sunday)
         startDate = new Date(startOfDay);
         startDate.setDate(startDate.getDate() - startDate.getDay());
         break;
@@ -52,96 +53,114 @@ export const Dashboard: React.FC<DashboardProps> = ({ orders }) => {
         startDate = startOfDay;
     }
 
-    return orders.filter(o => {
-      const orderDate = new Date(o.date);
-      return orderDate >= startDate && orderDate <= endDate;
-    });
-  }, [orders, dateRange, customStart, customEnd]);
-  
-  const stats = useMemo(() => {
-    const totalOrders = filteredOrders.length;
-    const pendingOrders = filteredOrders.filter(o => o.status === OrderStatus.PENDING).length;
-    const deliveredOrders = filteredOrders.filter(o => o.status === OrderStatus.DELIVERED).length;
-    const completedOrders = filteredOrders.filter(o => o.status === OrderStatus.COMPLETED).length;
-
     let revenueCash = 0;
     let revenueOnline = 0;
     let totalProfit = 0;
+    let completedCount = 0;
+    let pendingCount = 0;
+    let deliveredCount = 0;
 
-    filteredOrders.forEach(order => {
-      if (order.status === OrderStatus.COMPLETED) {
-        revenueCash += order.paymentDetails.cashAmount || 0;
-        revenueOnline += order.paymentDetails.onlineAmount || 0;
+    if (!orders) return {
+        totalOrders: 0, pendingOrders: 0, deliveredOrders: 0, completedOrders: 0,
+        revenueCash: 0, revenueOnline: 0, totalRevenue: 0, totalProfit: 0
+    };
 
-        // Calculate profit
-        let orderCost = 0;
-        let orderSell = 0;
-        
-        order.items.forEach(item => {
-          orderCost += item.costPriceSnapshot * item.quantity;
-          orderSell += item.sellingPriceSnapshot * item.quantity;
-        });
-        
-        // Profit = (Sell - Cost) - Discount
-        const profit = (orderSell - orderCost) - (order.discount || 0);
-        totalProfit += profit;
+    orders.forEach(o => {
+      // Safety check for invalid dates
+      const dateStr = o.date || new Date().toISOString();
+      const creationDate = new Date(dateStr);
+      const completionDate = o.completedAt ? new Date(o.completedAt) : creationDate;
+      const isInRangeCreation = creationDate >= startDate && creationDate <= endDate;
+      const isInRangeCompletion = completionDate >= startDate && completionDate <= endDate;
+
+      if (o.status === OrderStatus.PENDING) {
+         if (isInRangeCreation) pendingCount++;
+      } else if (o.status === OrderStatus.DELIVERED) {
+         if (isInRangeCreation) deliveredCount++;
+      } else if (o.status === OrderStatus.COMPLETED) {
+         if (isInRangeCompletion) {
+            completedCount++;
+            
+            // Robust check for paymentDetails to prevent crashes on old data
+            const pd = o.paymentDetails || { cashAmount: 0, onlineAmount: 0, totalPaid: 0, method: 'NONE' };
+            
+            // Fallback to totalPaid if breakdown is missing (legacy orders)
+            if ((pd.cashAmount || 0) === 0 && (pd.onlineAmount || 0) === 0 && (pd.totalPaid || 0) > 0) {
+               if (pd.method === 'CASH') revenueCash += pd.totalPaid;
+               else revenueOnline += pd.totalPaid;
+            } else {
+               revenueCash += pd.cashAmount || 0;
+               revenueOnline += pd.onlineAmount || 0;
+            }
+
+            let orderCost = 0;
+            let orderSell = 0;
+            if (o.items && Array.isArray(o.items)) {
+                o.items.forEach(item => {
+                orderCost += (item.costPriceSnapshot || 0) * (item.quantity || 0);
+                orderSell += (item.sellingPriceSnapshot || 0) * (item.quantity || 0);
+                });
+            }
+            const profit = (orderSell - orderCost) - (o.discount || 0);
+            totalProfit += profit;
+         }
       }
     });
 
     return {
-      totalOrders,
-      pendingOrders,
-      deliveredOrders,
-      completedOrders,
+      totalOrders: pendingCount + deliveredCount + completedCount,
+      pendingOrders: pendingCount,
+      deliveredOrders: deliveredCount,
+      completedOrders: completedCount,
       revenueCash,
       revenueOnline,
       totalRevenue: revenueCash + revenueOnline,
       totalProfit
     };
-  }, [filteredOrders]);
+  }, [orders, dateRange, customStart, customEnd]);
 
-  // Prepare chart data based on date range
   const chartData = useMemo(() => {
-    // If range is Today or Yesterday, show status breakdown
     if (dateRange === 'TODAY' || dateRange === 'YESTERDAY') {
        return [
-        { name: 'Pending', value: stats.pendingOrders, color: '#f59e0b' },
-        { name: 'Delivered', value: stats.deliveredOrders, color: '#3b82f6' },
-        { name: 'Completed', value: stats.completedOrders, color: '#10b981' },
+        { name: 'Pending', value: filteredStats.pendingOrders, color: '#f59e0b' },
+        { name: 'Delivered', value: filteredStats.deliveredOrders, color: '#3b82f6' },
+        { name: 'Completed', value: filteredStats.completedOrders, color: '#10b981' },
       ];
     } else {
-      // If range is longer, show revenue over time
-      // Group by date
-      const grouped = filteredOrders.reduce((acc, order) => {
-        if (order.status !== OrderStatus.COMPLETED) return acc;
-        const dateKey = new Date(order.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-        acc[dateKey] = (acc[dateKey] || 0) + order.totalAmount;
-        return acc;
-      }, {} as Record<string, number>);
-
-      return Object.entries(grouped).map(([name, value]) => ({
-        name,
-        value,
-        color: '#10b981'
-      }));
+       return [
+         { name: 'Cash', value: filteredStats.revenueCash, color: '#16a34a' },
+         { name: 'Online', value: filteredStats.revenueOnline, color: '#2563eb' }
+       ];
     }
-  }, [stats, filteredOrders, dateRange]);
+  }, [filteredStats, dateRange]);
+
+  const container = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1 }
+    }
+  };
+
+  const item = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0 }
+  };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
       
       {/* Date Filter Bar */}
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-col md:flex-row justify-between items-center gap-4">
-        <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto pb-2 md:pb-0 no-scrollbar">
-          <Calendar className="w-5 h-5 text-gray-500 hidden md:block" />
+      <motion.div variants={item} className="bg-white p-2 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div className="flex items-center gap-1 overflow-x-auto w-full md:w-auto p-1 no-scrollbar">
           {(['TODAY', 'YESTERDAY', 'WEEK', 'MONTH', 'YEAR'] as const).map(range => (
             <button
               key={range}
               onClick={() => setDateRange(range)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
                 dateRange === range 
-                  ? 'bg-brand-600 text-white shadow-sm' 
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  ? 'bg-brand-600 text-white shadow-lg shadow-brand-500/30' 
+                  : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
               }`}
             >
               {range === 'TODAY' ? 'Today' : 
@@ -151,10 +170,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ orders }) => {
           ))}
           <button
               onClick={() => setDateRange('CUSTOM')}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
                 dateRange === 'CUSTOM' 
-                  ? 'bg-brand-600 text-white shadow-sm' 
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  ? 'bg-brand-600 text-white shadow-lg shadow-brand-500/30' 
+                  : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
               }`}
             >
               Custom
@@ -162,92 +181,73 @@ export const Dashboard: React.FC<DashboardProps> = ({ orders }) => {
         </div>
 
         {dateRange === 'CUSTOM' && (
-          <div className="flex items-center gap-2 w-full md:w-auto">
+          <div className="flex items-center gap-2 w-full md:w-auto px-2">
             <input 
               type="date" 
-              className="border rounded px-2 py-1 text-sm w-full md:w-auto"
+              className="border rounded-lg px-2 py-1.5 text-xs bg-gray-50"
               value={customStart}
               onChange={(e) => setCustomStart(e.target.value)}
             />
             <span className="text-gray-400">-</span>
             <input 
               type="date" 
-              className="border rounded px-2 py-1 text-sm w-full md:w-auto"
+              className="border rounded-lg px-2 py-1.5 text-xs bg-gray-50"
               value={customEnd}
               onChange={(e) => setCustomEnd(e.target.value)}
             />
           </div>
         )}
-      </div>
+      </motion.div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-        <Card className="p-4 border-l-4 border-brand-500">
-          <div className="flex items-center justify-between">
-            <div className="overflow-hidden">
-              <p className="text-xs md:text-sm font-medium text-gray-500 truncate">Total Orders</p>
-              <p className="text-xl md:text-2xl font-bold text-gray-900">{stats.totalOrders}</p>
-            </div>
-            <div className="p-2 bg-brand-50 rounded-full shrink-0">
-              <ShoppingBag className="w-5 h-5 md:w-6 md:h-6 text-brand-600" />
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-4 border-l-4 border-emerald-500">
-          <div className="flex items-center justify-between">
-            <div className="overflow-hidden">
-              <p className="text-xs md:text-sm font-medium text-gray-500 truncate">Revenue</p>
-              <p className="text-xl md:text-2xl font-bold text-gray-900">₹{stats.totalRevenue.toFixed(0)}</p>
-              <p className="text-[10px] md:text-xs text-gray-500 truncate">Cash: {stats.revenueCash} | Onl: {stats.revenueOnline}</p>
-            </div>
-            <div className="p-2 bg-emerald-50 rounded-full shrink-0">
-              <DollarSign className="w-5 h-5 md:w-6 md:h-6 text-emerald-600" />
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-4 border-l-4 border-indigo-500">
-          <div className="flex items-center justify-between">
-            <div className="overflow-hidden">
-              <p className="text-xs md:text-sm font-medium text-gray-500 truncate">Profit</p>
-              <p className="text-xl md:text-2xl font-bold text-gray-900">₹{stats.totalProfit.toFixed(0)}</p>
-            </div>
-            <div className="p-2 bg-indigo-50 rounded-full shrink-0">
-              <TrendingUp className="w-5 h-5 md:w-6 md:h-6 text-indigo-600" />
-            </div>
-          </div>
-        </Card>
-
-         <Card className="p-4 border-l-4 border-orange-500">
-          <div className="flex items-center justify-between">
-            <div className="overflow-hidden">
-              <p className="text-xs md:text-sm font-medium text-gray-500 truncate">Pending</p>
-              <p className="text-xl md:text-2xl font-bold text-gray-900">{stats.pendingOrders}</p>
-            </div>
-            <div className="p-2 bg-orange-50 rounded-full shrink-0">
-              <Truck className="w-5 h-5 md:w-6 md:h-6 text-orange-600" />
-            </div>
-          </div>
-        </Card>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard 
+          title="Total Revenue"
+          value={`₹${filteredStats.totalRevenue.toFixed(0)}`}
+          subValue={`Cash: ${filteredStats.revenueCash} • Onl: ${filteredStats.revenueOnline}`}
+          icon={DollarSign}
+          color="emerald"
+        />
+        <StatCard 
+          title="Total Profit"
+          value={`₹${filteredStats.totalProfit.toFixed(0)}`}
+          subValue="Net earnings"
+          icon={TrendingUp}
+          color="indigo"
+        />
+        <StatCard 
+          title="Pending Orders"
+          value={filteredStats.pendingOrders.toString()}
+          subValue="Needs action"
+          icon={Truck}
+          color="amber"
+        />
+        <StatCard 
+          title="Completed"
+          value={filteredStats.completedOrders.toString()}
+          subValue="Finished jobs"
+          icon={ShoppingBag}
+          color="brand"
+        />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">
-            {(dateRange === 'TODAY' || dateRange === 'YESTERDAY') ? 'Status Overview' : 'Revenue Trend'}
+        <motion.div variants={item} className="bg-white rounded-2xl shadow-soft border border-gray-100 p-6">
+          <h3 className="text-sm font-bold text-gray-900 mb-6 flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-gray-400" />
+            {(dateRange === 'TODAY' || dateRange === 'YESTERDAY') ? 'Status Overview' : 'Revenue Breakdown'}
           </h3>
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="name" tick={{fontSize: 12}} />
-                <YAxis allowDecimals={false} tick={{fontSize: 12}} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="name" tick={{fontSize: 12, fill: '#64748b'}} axisLine={false} tickLine={false} />
+                <YAxis allowDecimals={false} tick={{fontSize: 12, fill: '#64748b'}} axisLine={false} tickLine={false} />
                 <Tooltip 
-                  cursor={{fill: 'transparent'}}
-                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                  cursor={{fill: '#f8fafc'}}
+                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', padding: '12px' }}
                 />
-                <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                <Bar dataKey="value" radius={[6, 6, 0, 0]}>
                   {chartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
@@ -255,32 +255,73 @@ export const Dashboard: React.FC<DashboardProps> = ({ orders }) => {
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </Card>
+        </motion.div>
 
-        <Card className="p-6">
-           <h3 className="text-lg font-medium text-gray-900 mb-4">Payment Breakdown</h3>
+        <motion.div variants={item} className="bg-white rounded-2xl shadow-soft border border-gray-100 p-6">
+           <h3 className="text-sm font-bold text-gray-900 mb-6 flex items-center gap-2">
+             <DollarSign className="w-4 h-4 text-gray-400" />
+             Payment Summary
+           </h3>
            <div className="space-y-4">
-              <div className="flex items-center p-4 bg-gray-50 rounded-lg">
-                <div className="p-3 bg-green-100 rounded-full mr-4">
-                  <DollarSign className="w-6 h-6 text-green-600" />
+              <div className="flex items-center p-4 bg-emerald-50/50 rounded-xl border border-emerald-100/50">
+                <div className="p-3 bg-emerald-100 rounded-xl mr-4 text-emerald-600">
+                  <DollarSign className="w-5 h-5" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-500">Cash Collected</p>
-                  <p className="text-xl font-bold text-gray-900">₹{stats.revenueCash.toFixed(2)}</p>
+                  <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wide">Cash Collected</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">₹{filteredStats.revenueCash.toFixed(2)}</p>
                 </div>
               </div>
-              <div className="flex items-center p-4 bg-gray-50 rounded-lg">
-                <div className="p-3 bg-blue-100 rounded-full mr-4">
-                  <DollarSign className="w-6 h-6 text-blue-600" />
+              <div className="flex items-center p-4 bg-blue-50/50 rounded-xl border border-blue-100/50">
+                <div className="p-3 bg-blue-100 rounded-xl mr-4 text-blue-600">
+                  <ArrowUpRight className="w-5 h-5" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-500">Online Collected</p>
-                  <p className="text-xl font-bold text-gray-900">₹{stats.revenueOnline.toFixed(2)}</p>
+                  <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide">Online Collected</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">₹{filteredStats.revenueOnline.toFixed(2)}</p>
                 </div>
               </div>
            </div>
-        </Card>
+        </motion.div>
       </div>
-    </div>
+    </motion.div>
   );
 };
+
+const StatCard = ({ title, value, subValue, icon: Icon, color }: any) => {
+  const colors = {
+    emerald: "bg-emerald-500",
+    indigo: "bg-indigo-500",
+    amber: "bg-amber-500",
+    brand: "bg-brand-500",
+  };
+  
+  const bgGradient = {
+    emerald: "from-emerald-500 to-teal-500",
+    indigo: "from-indigo-500 to-violet-500",
+    amber: "from-amber-400 to-orange-500",
+    brand: "from-brand-500 to-cyan-500",
+  }
+
+  return (
+    <motion.div 
+      variants={{ hidden: { opacity: 0, scale: 0.9 }, show: { opacity: 1, scale: 1 } }}
+      className={`relative overflow-hidden rounded-2xl p-5 text-white shadow-lg bg-gradient-to-br ${(bgGradient as any)[color]}`}
+    >
+      <div className="relative z-10">
+        <div className="flex justify-between items-start mb-4">
+          <p className="text-white/80 text-xs font-bold uppercase tracking-wider">{title}</p>
+          <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+             <Icon className="w-4 h-4 text-white" />
+          </div>
+        </div>
+        <p className="text-2xl font-bold">{value}</p>
+        <p className="text-xs text-white/70 mt-1 font-medium">{subValue}</p>
+      </div>
+      
+      {/* Decorative Circles */}
+      <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+      <div className="absolute top-0 right-0 w-16 h-16 bg-white/5 rounded-full blur-xl pointer-events-none" />
+    </motion.div>
+  );
+}

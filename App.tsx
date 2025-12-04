@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Product, Order, OrderStatus, PaymentStatus, PaymentMethod } from './types';
 import * as Storage from './services/storage';
@@ -6,57 +5,39 @@ import { Dashboard } from './components/Dashboard';
 import { ProductManager } from './components/ProductManager';
 import { OrderManager } from './components/OrderManager';
 import { RequirementView } from './components/RequirementView';
-import { LayoutDashboard, Package, ShoppingCart, ClipboardList, Menu, X } from 'lucide-react';
+import { RoughWork } from './components/RoughWork';
+import { VoiceAssistant } from './components/VoiceAssistant';
+import { LayoutDashboard, Package, ShoppingCart, ClipboardList, PenTool, Printer } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
-// Toast Notification Simple Implementation
+// Toast Notification
 const Toast = ({ message, type, onClose }: { message: string, type: 'success' | 'error', onClose: () => void }) => (
-  <div className={`fixed bottom-4 right-4 px-6 py-3 rounded-lg shadow-lg text-white transform transition-all duration-300 z-50 flex items-center gap-2 ${type === 'success' ? 'bg-emerald-600' : 'bg-red-600'}`}>
+  <motion.div 
+    initial={{ opacity: 0, y: 50, scale: 0.9 }}
+    animate={{ opacity: 1, y: 0, scale: 1 }}
+    exit={{ opacity: 0, y: 20, scale: 0.95 }}
+    className={`fixed bottom-24 md:bottom-8 right-4 px-6 py-3 rounded-2xl shadow-xl shadow-gray-200 text-white z-[60] flex items-center gap-3 font-medium ${type === 'success' ? 'bg-gray-900' : 'bg-red-500'}`}
+  >
     <span>{message}</span>
-    <button onClick={onClose} className="ml-2 hover:opacity-75">✕</button>
-  </div>
+    <button onClick={onClose} className="hover:opacity-75">✕</button>
+  </motion.div>
 );
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'PRODUCTS' | 'ORDERS' | 'REQUIREMENT'>('DASHBOARD');
+  const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'PRODUCTS' | 'ORDERS' | 'REQUIREMENT' | 'NOTES'>('DASHBOARD');
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
-  const [toast, setToast] = useState<{msg: string, type: 'success'|'error'} | null>(null);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
     setProducts(Storage.getProducts());
     setOrders(Storage.getOrders());
   }, []);
 
-  const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
-    setToast({ msg, type });
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
   };
-
-  // --- Helper: Stock Logic ---
-  // Deduct stock for items in an order
-  const deductStockForOrder = (currentProducts: Product[], orderItems: any[]): Product[] => {
-    return currentProducts.map(p => {
-      const orderItem = orderItems.find(item => item.productId === p.id && !item.isCustom);
-      if (orderItem) {
-        return { ...p, quantity: p.quantity - orderItem.quantity };
-      }
-      return p;
-    });
-  };
-
-  // Restore stock (add back)
-  const restoreStockForOrder = (currentProducts: Product[], orderItems: any[]): Product[] => {
-    return currentProducts.map(p => {
-      const orderItem = orderItems.find(item => item.productId === p.id && !item.isCustom);
-      if (orderItem) {
-        return { ...p, quantity: p.quantity + orderItem.quantity };
-      }
-      return p;
-    });
-  };
-
-  // --- Actions ---
 
   const handleAddProduct = (product: Product) => {
     const updated = [...products, product];
@@ -69,7 +50,7 @@ const App: React.FC = () => {
     const updated = products.map(p => p.id === product.id ? product : p);
     setProducts(updated);
     Storage.saveProducts(updated);
-    showToast('Product updated');
+    showToast('Product updated successfully');
   };
 
   const handleDeleteProduct = (id: string) => {
@@ -77,173 +58,201 @@ const App: React.FC = () => {
       const updated = products.filter(p => p.id !== id);
       setProducts(updated);
       Storage.saveProducts(updated);
-      showToast('Product deleted');
+      showToast('Product deleted', 'error');
     }
   };
 
-  const handleSaveOrder = (order: Order, isEdit: boolean) => {
-    let updatedProducts = [...products];
-
+  const handleSaveOrder = (order: Order, isEdit: boolean = false) => {
+    let updatedOrders;
     if (isEdit) {
-      // 1. Find old order
       const oldOrder = orders.find(o => o.id === order.id);
-      if (oldOrder) {
-        // 2. Restore stock from old order items
-        updatedProducts = restoreStockForOrder(updatedProducts, oldOrder.items);
+      if (oldOrder?.status === OrderStatus.COMPLETED) {
+         oldOrder.items.forEach(item => {
+           if (!item.isCustom) Storage.updateProductStock(item.productId, item.quantity);
+         });
+         if (order.status === OrderStatus.COMPLETED) {
+            order.items.forEach(item => {
+              if (!item.isCustom) Storage.updateProductStock(item.productId, -item.quantity);
+            });
+         }
+         setProducts(Storage.getProducts());
       }
-      // 3. Update Order List
-      const updatedOrders = orders.map(o => o.id === order.id ? order : o);
-      setOrders(updatedOrders);
-      Storage.saveOrders(updatedOrders);
+      updatedOrders = orders.map(o => o.id === order.id ? order : o);
       showToast('Order updated');
     } else {
-      // Create New
-      const updatedOrders = [order, ...orders];
-      setOrders(updatedOrders);
-      Storage.saveOrders(updatedOrders);
-      showToast('Order created');
+      updatedOrders = [...orders, order];
+      showToast('New order created');
     }
-
-    // 4. Deduct stock for new items
-    updatedProducts = deductStockForOrder(updatedProducts, order.items);
-    
-    setProducts(updatedProducts);
-    Storage.saveProducts(updatedProducts);
-    setActiveTab('ORDERS');
-  };
-
-  const handleUpdateOrderStatus = (orderId: string, status: OrderStatus, paymentDetails?: any, note?: string) => {
-    const updatedOrders = orders.map(o => {
-      if (o.id === orderId) {
-        let updates: Partial<Order> = { status };
-        
-        if (note) {
-          updates.note = note;
-        }
-
-        if (status === OrderStatus.COMPLETED && paymentDetails) {
-          updates.paymentDetails = {
-            method: paymentDetails.method,
-            cashAmount: paymentDetails.method === PaymentMethod.CASH ? paymentDetails.amountPaid : 0,
-            onlineAmount: paymentDetails.method === PaymentMethod.ONLINE ? paymentDetails.amountPaid : 0,
-            totalPaid: paymentDetails.amountPaid,
-            status: paymentDetails.status
-          };
-        }
-        return { ...o, ...updates };
-      }
-      return o;
-    });
     setOrders(updatedOrders);
     Storage.saveOrders(updatedOrders);
-    showToast(`Order updated: ${status}`);
+  };
+
+  const handleUpdateStatus = (orderId: string, status: OrderStatus, paymentDetails?: any, note?: string) => {
+    const orderIndex = orders.findIndex(o => o.id === orderId);
+    if (orderIndex === -1) return;
+
+    const order = orders[orderIndex];
+    const oldStatus = order.status;
+    
+    if (status === OrderStatus.COMPLETED && oldStatus !== OrderStatus.COMPLETED) {
+       order.items.forEach(item => {
+         if (!item.isCustom) Storage.updateProductStock(item.productId, -item.quantity);
+       });
+       setProducts(Storage.getProducts());
+    } else if (oldStatus === OrderStatus.COMPLETED && status !== OrderStatus.COMPLETED) {
+       order.items.forEach(item => {
+         if (!item.isCustom) Storage.updateProductStock(item.productId, item.quantity);
+       });
+       setProducts(Storage.getProducts());
+    }
+
+    const updatedOrders = [...orders];
+    updatedOrders[orderIndex] = { 
+      ...order, 
+      status,
+      completedAt: status === OrderStatus.COMPLETED ? new Date().toISOString() : order.completedAt,
+      paymentDetails: paymentDetails || order.paymentDetails,
+      note: note !== undefined ? note : order.note
+    };
+
+    setOrders(updatedOrders);
+    Storage.saveOrders(updatedOrders);
+    showToast(`Order marked as ${status}`);
   };
 
   const handleDeleteOrder = (id: string) => {
-    if (confirm('Delete this order? Stock will be restored.')) {
+    if (confirm('Delete this order?')) {
       const order = orders.find(o => o.id === id);
-      if (order) {
-         // Restore stock
-         const updatedProducts = restoreStockForOrder(products, order.items);
-         setProducts(updatedProducts);
-         Storage.saveProducts(updatedProducts);
-
-         // Remove order
-         const updatedOrders = orders.filter(o => o.id !== id);
-         setOrders(updatedOrders);
-         Storage.saveOrders(updatedOrders);
-         showToast('Order deleted');
+      if (order?.status === OrderStatus.COMPLETED) {
+        order.items.forEach(item => {
+           if (!item.isCustom) Storage.updateProductStock(item.productId, item.quantity);
+        });
+        setProducts(Storage.getProducts());
       }
+      const updated = orders.filter(o => o.id !== id);
+      setOrders(updated);
+      Storage.saveOrders(updated);
+      showToast('Order deleted', 'error');
     }
   };
 
-  // --- Layout Helpers ---
-  const NavItem = ({ tab, icon: Icon, label }: { tab: typeof activeTab, icon: any, label: string }) => (
-    <button
-      onClick={() => { setActiveTab(tab); setIsMobileMenuOpen(false); }}
-      className={`flex items-center space-x-2 px-4 py-3 rounded-lg transition-colors w-full md:w-auto
-        ${activeTab === tab ? 'bg-brand-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'}
-      `}
-    >
-      <Icon className="w-5 h-5" />
-      <span className="font-medium">{label}</span>
-    </button>
-  );
+  const navItems = [
+    { id: 'DASHBOARD', icon: LayoutDashboard, label: 'Home' },
+    { id: 'ORDERS', icon: ShoppingCart, label: 'Orders' },
+    { id: 'REQUIREMENT', icon: ClipboardList, label: 'Needs' },
+    { id: 'NOTES', icon: PenTool, label: 'Notes' },
+    { id: 'PRODUCTS', icon: Package, label: 'Stock' },
+  ] as const;
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Header */}
-      <header className="bg-white shadow-sm sticky top-0 z-40">
+    <div className="min-h-screen bg-gray-50/50 pb-28 md:pb-10 font-sans text-gray-900 selection:bg-brand-100 selection:text-brand-900">
+      {/* Header (Desktop & Mobile) */}
+      <header className="bg-white/80 backdrop-blur-xl border-b border-gray-200 sticky top-0 z-40 transition-all">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <div className="bg-brand-600 text-white p-2 rounded-lg mr-3">
-                 <ClipboardList className="w-6 h-6" />
+          <div className="flex justify-between h-16 items-center">
+            <div className="flex items-center gap-3">
+              <div className="bg-gradient-to-tr from-brand-600 to-indigo-600 p-2.5 rounded-xl shadow-lg shadow-brand-500/20">
+                 <Printer className="w-5 h-5 text-white" />
               </div>
-              <h1 className="text-xl font-bold text-gray-900 tracking-tight">Print Bazar <span className="text-brand-600">Manager</span></h1>
+              <div>
+                <h1 className="text-lg font-bold text-gray-900 leading-none tracking-tight">Print Bazar</h1>
+                <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Manager</p>
+              </div>
             </div>
             
-            {/* Desktop Nav */}
-            <nav className="hidden md:flex space-x-2">
-              <NavItem tab="DASHBOARD" icon={LayoutDashboard} label="Dashboard" />
-              <NavItem tab="ORDERS" icon={ShoppingCart} label="Orders" />
-              <NavItem tab="REQUIREMENT" icon={ClipboardList} label="Needs" />
-              <NavItem tab="PRODUCTS" icon={Package} label="Stock" />
+            {/* Desktop Navigation */}
+            <nav className="hidden md:flex items-center gap-1 bg-gray-100/50 p-1 rounded-xl">
+               {navItems.map(item => (
+                 <button 
+                   key={item.id}
+                   onClick={() => setActiveTab(item.id)} 
+                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                     activeTab === item.id 
+                       ? 'bg-white text-brand-600 shadow-sm' 
+                       : 'text-gray-500 hover:text-gray-900 hover:bg-white/50'
+                   }`}
+                 >
+                   {item.label}
+                 </button>
+               ))}
             </nav>
-
-            {/* Mobile Menu Button */}
-            <button 
-              className="md:hidden p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            >
-              {isMobileMenuOpen ? <X /> : <Menu />}
-            </button>
           </div>
         </div>
-        
-        {/* Mobile Nav */}
-        {isMobileMenuOpen && (
-          <div className="md:hidden border-t border-gray-100 bg-white px-4 pt-2 pb-4 space-y-1 shadow-lg">
-              <NavItem tab="DASHBOARD" icon={LayoutDashboard} label="Dashboard" />
-              <NavItem tab="ORDERS" icon={ShoppingCart} label="Orders" />
-              <NavItem tab="REQUIREMENT" icon={ClipboardList} label="Needs" />
-              <NavItem tab="PRODUCTS" icon={Package} label="Stock" />
-          </div>
-        )}
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-          {activeTab === 'DASHBOARD' && <Dashboard orders={orders} />}
-          
-          {activeTab === 'PRODUCTS' && (
-            <ProductManager 
-              products={products}
-              onAddProduct={handleAddProduct}
-              onUpdateProduct={handleUpdateProduct}
-              onDeleteProduct={handleDeleteProduct}
-            />
-          )}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+          >
+            {activeTab === 'DASHBOARD' && <Dashboard orders={orders} />}
+            
+            {activeTab === 'ORDERS' && (
+              <OrderManager 
+                orders={orders} 
+                products={products} 
+                onSaveOrder={handleSaveOrder} 
+                onUpdateStatus={handleUpdateStatus}
+                onDeleteOrder={handleDeleteOrder}
+              />
+            )}
+            
+            {activeTab === 'PRODUCTS' && (
+              <ProductManager 
+                products={products} 
+                onAddProduct={handleAddProduct}
+                onUpdateProduct={handleUpdateProduct}
+                onDeleteProduct={handleDeleteProduct}
+              />
+            )}
 
-          {activeTab === 'ORDERS' && (
-            <OrderManager 
-              orders={orders}
-              products={products}
-              onSaveOrder={handleSaveOrder}
-              onUpdateStatus={handleUpdateOrderStatus}
-              onDeleteOrder={handleDeleteOrder}
-            />
-          )}
+            {activeTab === 'REQUIREMENT' && (
+              <RequirementView products={products} orders={orders} />
+            )}
 
-          {activeTab === 'REQUIREMENT' && (
-            <RequirementView products={products} orders={orders} />
-          )}
-        </div>
+            {activeTab === 'NOTES' && (
+              <RoughWork />
+            )}
+          </motion.div>
+        </AnimatePresence>
       </main>
 
-      {/* Toast */}
-      {toast && <Toast message={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
+      {/* Mobile Footer Navigation */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-gray-200 z-50 pb-safe shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.05)]">
+        <div className="flex justify-around items-center h-16">
+          {navItems.map(item => (
+            <button 
+              key={item.id}
+              onClick={() => setActiveTab(item.id)} 
+              className="relative flex flex-col items-center justify-center w-full h-full space-y-1 group"
+            >
+              {activeTab === item.id && (
+                <motion.div 
+                  layoutId="navIndicator"
+                  className="absolute top-0 w-8 h-1 bg-brand-600 rounded-b-full shadow-[0_0_10px_rgba(2,132,199,0.5)]"
+                />
+              )}
+              <item.icon className={`w-6 h-6 transition-colors duration-200 ${activeTab === item.id ? 'text-brand-600' : 'text-gray-400 group-hover:text-gray-600'}`} />
+              <span className={`text-[10px] font-medium transition-colors duration-200 ${activeTab === item.id ? 'text-brand-600' : 'text-gray-400 group-hover:text-gray-600'}`}>
+                {item.label}
+              </span>
+            </button>
+          ))}
+        </div>
+      </nav>
+
+      <VoiceAssistant />
+
+      <AnimatePresence>
+        {toast && (
+          <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

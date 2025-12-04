@@ -1,8 +1,8 @@
-
 import React, { useMemo } from 'react';
 import { Product, Order, OrderStatus } from '../types';
 import { Card } from './ui/Common';
-import { Printer, AlertTriangle } from 'lucide-react';
+import { Printer, AlertTriangle, Package, ShoppingBag } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 interface RequirementViewProps {
   products: Product[];
@@ -12,12 +12,7 @@ interface RequirementViewProps {
 export const RequirementView: React.FC<RequirementViewProps> = ({ products, orders }) => {
 
   const { requirements, totalOrderValue } = useMemo(() => {
-    // 1. Calculate Total Order Value (All Orders)
     const totalOrderValue = orders.reduce((acc, o) => acc + o.totalAmount, 0);
-
-    // 2. Calculate Pending Demand
-    // We only care about orders that are PENDING or DELIVERED (not yet fully completed/archived perhaps)
-    // Actually, usually "Requirement" is for PENDING orders that need to be produced.
     const activeOrders = orders.filter(o => o.status === OrderStatus.PENDING);
     
     const productDemand: Record<string, number> = {};
@@ -31,9 +26,6 @@ export const RequirementView: React.FC<RequirementViewProps> = ({ products, orde
 
     const list = products.map(p => {
       const orderedQty = productDemand[p.id] || 0;
-      // Formula: Needed = Ordered (Pending) - Current Stock
-      // If we have 10 in stock and 5 ordered, Needed = 0 (Surplus 5)
-      // If we have 2 in stock and 5 ordered, Needed = 3
       const needed = Math.max(0, orderedQty - p.quantity);
 
       return {
@@ -50,79 +42,114 @@ export const RequirementView: React.FC<RequirementViewProps> = ({ products, orde
   }, [products, orders]);
 
   return (
-    <div className="space-y-4">
-      {/* Summary Card */}
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+      {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-         <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex items-center gap-4">
-            <div className="p-3 bg-blue-100 rounded-full text-blue-600">
+         <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-5 rounded-2xl text-white shadow-lg shadow-blue-500/20 flex items-center gap-4">
+            <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
                <Printer className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-sm text-blue-800 font-medium">Items to Print/Acquire</p>
-              <h3 className="text-2xl font-bold text-blue-900">{requirements.reduce((a,b) => a + b.needed, 0)} Units</h3>
+              <p className="text-blue-100 text-xs font-bold uppercase tracking-wider">Total Production Need</p>
+              <h3 className="text-3xl font-bold">{requirements.reduce((a,b) => a + b.needed, 0)} <span className="text-lg opacity-80 font-medium">Units</span></h3>
             </div>
          </div>
-         <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100 flex items-center gap-4">
-            <div className="p-3 bg-emerald-100 rounded-full text-emerald-600">
+         <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-soft flex items-center gap-4">
+            <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl">
                <span className="text-xl font-bold">₹</span>
             </div>
             <div>
-              <p className="text-sm text-emerald-800 font-medium">Total Value (All Orders)</p>
-              <h3 className="text-2xl font-bold text-emerald-900">₹{totalOrderValue.toFixed(2)}</h3>
+              <p className="text-gray-400 text-xs font-bold uppercase tracking-wider">Total Value (Pending)</p>
+              <h3 className="text-2xl font-bold text-gray-900">₹{totalOrderValue.toFixed(0)}</h3>
             </div>
          </div>
       </div>
 
-      <Card className="overflow-hidden">
-        <div className="p-4 border-b bg-gray-50">
-          <h3 className="font-semibold text-gray-900">Stock & Requirement Detail</h3>
+      <div className="bg-white rounded-2xl shadow-soft border border-gray-100 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
+          <h3 className="font-bold text-gray-900">Production List</h3>
+          <span className="text-xs font-bold text-gray-500 bg-white border px-2 py-1 rounded-lg">{requirements.length} Items</span>
         </div>
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-white">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">In Stock</th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Pending Orders</th>
-              <th className="px-6 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">Need to Print</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {requirements.map((item) => (
-              <tr key={item.id} className={item.needed > 0 ? "bg-red-50" : ""}>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">{item.name}</div>
-                  <div className="text-xs text-gray-500">{item.category}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-center text-sm">
-                  <span className={`${item.currentStock < 5 ? 'text-red-600 font-bold' : 'text-gray-900'}`}>
-                    {item.currentStock}
+
+        {/* Mobile View: Cards */}
+        <div className="block md:hidden divide-y divide-gray-50">
+          {requirements.map((item) => (
+            <div key={item.id} className={`p-5 ${item.needed > 0 ? "bg-red-50/40" : "bg-white"}`}>
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h4 className="font-bold text-gray-900 text-base">{item.name}</h4>
+                  <span className="text-xs text-gray-500 font-medium">{item.category}</span>
+                </div>
+                {item.needed > 0 && (
+                  <span className="inline-flex items-center px-2 py-1 rounded-lg text-xs font-bold bg-red-100 text-red-700 gap-1 animate-pulse">
+                    <AlertTriangle className="w-3 h-3" />
+                    Short {item.needed}
                   </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">
-                  {item.orderedQty}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-center">
-                  {item.needed > 0 ? (
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-red-100 text-red-800 gap-1">
-                      <AlertTriangle className="w-3 h-3" />
-                      {item.needed}
-                    </span>
-                  ) : (
-                    <span className="text-gray-400 text-sm">-</span>
-                  )}
-                </td>
-              </tr>
-            ))}
-            {requirements.length === 0 && (
+                )}
+              </div>
+              
+              <div className="flex gap-2">
+                <div className="flex-1 bg-gray-50 p-2.5 rounded-xl border border-gray-100 text-center">
+                   <div className="text-[10px] text-gray-400 uppercase font-bold mb-1">Stock</div>
+                   <div className={`font-bold text-sm ${item.currentStock < 5 ? 'text-red-600' : 'text-gray-900'}`}>{item.currentStock}</div>
+                </div>
+                <div className="flex-1 bg-gray-50 p-2.5 rounded-xl border border-gray-100 text-center">
+                   <div className="text-[10px] text-gray-400 uppercase font-bold mb-1">Order</div>
+                   <div className="font-bold text-sm text-gray-900">{item.orderedQty}</div>
+                </div>
+                <div className={`flex-1 p-2.5 rounded-xl border text-center ${item.needed > 0 ? "bg-red-50 border-red-100" : "bg-gray-50 border-gray-100"}`}>
+                   <div className={`text-[10px] uppercase font-bold mb-1 ${item.needed > 0 ? "text-red-600" : "text-gray-400"}`}>Need</div>
+                   <div className={`font-bold text-sm ${item.needed > 0 ? "text-red-700" : "text-gray-400"}`}>
+                     {item.needed > 0 ? item.needed : '-'}
+                   </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop View: Table */}
+        <div className="hidden md:block overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-50">
+            <thead className="bg-gray-50/50">
               <tr>
-                <td colSpan={4} className="px-6 py-10 text-center text-gray-500">
-                  Stock levels are sufficient for all pending orders.
-                </td>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Product</th>
+                <th className="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">In Stock</th>
+                <th className="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Ordered</th>
+                <th className="px-6 py-4 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">Action Needed</th>
               </tr>
-            )}
-          </tbody>
-        </table>
-      </Card>
-    </div>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {requirements.map((item) => (
+                <tr key={item.id} className={`hover:bg-gray-50/50 transition-colors ${item.needed > 0 ? "bg-red-50/10" : ""}`}>
+                  <td className="px-6 py-4">
+                    <div className="text-sm font-semibold text-gray-900">{item.name}</div>
+                    <div className="text-xs text-gray-500">{item.category}</div>
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-lg text-sm font-bold ${item.currentStock < 5 ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-800'}`}>
+                      {item.currentStock}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-center text-sm font-medium text-gray-900">
+                    {item.orderedQty}
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    {item.needed > 0 ? (
+                      <span className="inline-flex items-center px-3 py-1 rounded-lg text-sm font-bold bg-red-100 text-red-700 gap-1.5 shadow-sm">
+                        <AlertTriangle className="w-3.5 h-3.5" />
+                        Print {item.needed}
+                      </span>
+                    ) : (
+                      <span className="text-emerald-600 text-xs font-bold uppercase tracking-wider bg-emerald-50 px-2 py-1 rounded-lg">Fulfilled</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </motion.div>
   );
 };

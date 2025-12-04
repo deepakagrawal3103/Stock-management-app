@@ -1,5 +1,7 @@
 {
   "name": "Print Bazar Manager",
   "description": "A comprehensive management tool for small printing businesses handling stock, orders, workflows, and profit tracking.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [
+    "microphone"
+  ]
 }
