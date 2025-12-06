@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Order, OrderStatus, Product, PaymentStatus, PaymentMethod } from '../types';
 import { Button, Card, Input, Modal, Badge, Textarea } from './ui/Common';
@@ -323,6 +324,15 @@ export const OrderManager: React.FC<OrderManagerProps> = ({ orders, products, on
                     ))}
                     {order.items.length > 2 && <div className="text-gray-400 italic text-[10px]">+ {order.items.length - 2} more items</div>}
                   </div>
+
+                  {order.note && (
+                    <div className="bg-amber-50 border border-amber-100 rounded-lg p-2.5">
+                      <p className="text-xs text-amber-900 font-medium leading-relaxed">
+                        <span className="font-bold text-amber-600 uppercase text-[10px] mr-1.5 tracking-wider">Note:</span>
+                        {order.note}
+                      </p>
+                    </div>
+                  )}
 
                   <div className="flex justify-end gap-2 pt-2 border-t border-gray-50">
                     <Button variant="ghost" size="sm" onClick={() => startEdit(order)} icon={Edit} className="h-8 w-8 p-0 text-gray-400 hover:text-brand-600" />
