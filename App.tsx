@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Product, Order, OrderStatus, PaymentStatus, PaymentMethod } from './types';
 import * as Storage from './services/storage';
@@ -25,14 +26,12 @@ const Toast = ({ message, type, onClose }: { message: string, type: 'success' | 
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'PRODUCTS' | 'ORDERS' | 'REQUIREMENT' | 'NOTES'>('DASHBOARD');
-  const [products, setProducts] = useState<Product[]>([]);
-  const [orders, setOrders] = useState<Order[]>([]);
+  
+  // Load data immediately on initialization to prevent blank screens
+  const [products, setProducts] = useState<Product[]>(() => Storage.getProducts() || []);
+  const [orders, setOrders] = useState<Order[]>(() => Storage.getOrders() || []);
+  
   const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
-
-  useEffect(() => {
-    setProducts(Storage.getProducts());
-    setOrders(Storage.getOrders());
-  }, []);
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
@@ -182,14 +181,8 @@ const App: React.FC = () => {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
-          >
+        {/* We removed AnimatePresence and initial opacity 0 here to fix loading/refresh issues */}
+        <div className="w-full">
             {activeTab === 'DASHBOARD' && <Dashboard orders={orders} />}
             
             {activeTab === 'ORDERS' && (
@@ -218,8 +211,7 @@ const App: React.FC = () => {
             {activeTab === 'NOTES' && (
               <RoughWork />
             )}
-          </motion.div>
-        </AnimatePresence>
+        </div>
       </main>
 
       {/* Mobile Footer Navigation */}

@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Product, Order, OrderStatus, PaymentStatus, PaymentMethod, OrderItem } from '../types';
 import { Button, Input, Textarea } from './ui/Common';
-import { Search, ShoppingCart, Plus, Minus, Trash2, Save, X, Tag, ChevronUp, AlertCircle } from 'lucide-react';
+import { Search, ShoppingCart, Plus, Minus, Trash2, Save, X, Tag, ChevronUp, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface POSCounterProps {
@@ -70,14 +70,7 @@ export const POSCounter: React.FC<POSCounterProps> = ({ products, initialOrder, 
   const addToCart = (product: Product) => {
     setItems(prev => {
       const existingIndex = prev.findIndex(i => i.id === product.id && !i.isCustom);
-      const currentQty = existingIndex >= 0 ? prev[existingIndex].quantity : 0;
       
-      // Stock Validation
-      if (currentQty >= product.quantity) {
-        // Optional: Trigger a small shake or toast here if needed
-        return prev;
-      }
-
       if (existingIndex >= 0) {
         const newItems = [...prev];
         newItems[existingIndex] = { ...newItems[existingIndex], quantity: newItems[existingIndex].quantity + 1 };
@@ -105,13 +98,6 @@ export const POSCounter: React.FC<POSCounterProps> = ({ products, initialOrder, 
   const updateItem = (index: number, changes: Partial<TempItem>) => {
     const newItems = [...items];
     const item = newItems[index];
-    
-    // Validate stock on manual update
-    if (changes.quantity !== undefined && !item.isCustom && item.maxStock !== undefined) {
-      if (changes.quantity > item.maxStock) {
-        return; // Prevent exceeding stock
-      }
-    }
     
     newItems[index] = { ...item, ...changes };
     setItems(newItems);
@@ -238,20 +224,19 @@ export const POSCounter: React.FC<POSCounterProps> = ({ products, initialOrder, 
                 {filteredProducts.map(product => {
                   const isLowStock = product.quantity <= product.minStock;
                   const quantityInCart = cartQuantities.get(product.id) || 0;
-                  const isOutOfStock = quantityInCart >= product.quantity;
+                  const isExceeding = quantityInCart > product.quantity;
 
                   return (
                     <motion.div 
                       key={product.id} 
                       whileHover={{ y: -2 }}
-                      whileTap={!isOutOfStock ? { scale: 0.98 } : {}}
-                      onClick={() => !isOutOfStock && addToCart(product)}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => addToCart(product)}
                       className={`cursor-pointer bg-white rounded-xl p-3 flex flex-col justify-between h-36 relative border transition-all 
-                        ${isOutOfStock ? 'opacity-60 grayscale-[0.5]' : ''}
                         ${quantityInCart > 0 ? 'border-brand-500 ring-1 ring-brand-500 shadow-lg shadow-brand-500/10' : 'border-gray-200 shadow-sm hover:shadow-md'}`}
                     >
                       {quantityInCart > 0 && (
-                        <div className="absolute -top-2 -right-2 bg-brand-600 text-white text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full shadow-lg z-10">
+                        <div className={`absolute -top-2 -right-2 text-white text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full shadow-lg z-10 ${isExceeding ? 'bg-amber-500' : 'bg-brand-600'}`}>
                           {quantityInCart}
                         </div>
                       )}
@@ -266,8 +251,8 @@ export const POSCounter: React.FC<POSCounterProps> = ({ products, initialOrder, 
                       
                       <div className="mt-2 pt-2 border-t border-gray-50 flex justify-between items-end">
                           <span className="text-lg font-bold text-gray-900">₹{product.sellingPrice}</span>
-                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${isOutOfStock ? 'bg-red-100 text-red-700' : isLowStock ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}>
-                            {isOutOfStock ? 'Max' : `${product.quantity} left`}
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${product.quantity <= 0 ? 'bg-red-100 text-red-700' : isLowStock ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}>
+                            {product.quantity <= 0 ? '0 Stock' : `${product.quantity} left`}
                           </span>
                       </div>
                     </motion.div>
@@ -321,7 +306,8 @@ export const POSCounter: React.FC<POSCounterProps> = ({ products, initialOrder, 
             ) : (
                <AnimatePresence>
                  {items.map((item, idx) => {
-                   const isMaxed = !item.isCustom && item.maxStock !== undefined && item.quantity >= item.maxStock;
+                   const isExceeding = !item.isCustom && item.maxStock !== undefined && item.quantity > item.maxStock;
+                   
                    return (
                      <motion.div key={idx} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, height: 0 }} className="border border-gray-100 rounded-xl p-3 relative bg-white shadow-sm">
                         <div className="flex justify-between items-start pr-8 mb-2">
@@ -346,8 +332,8 @@ export const POSCounter: React.FC<POSCounterProps> = ({ products, initialOrder, 
                              <button className="w-8 h-full hover:bg-gray-200 rounded-l-lg transition-colors text-gray-600" onClick={() => updateItem(idx, { quantity: Math.max(1, item.quantity - 1) })}><Minus className="w-3 h-3 mx-auto"/></button>
                              <span className="w-8 text-center text-sm font-bold text-gray-900">{item.quantity}</span>
                              <button 
-                                className={`w-8 h-full rounded-r-lg transition-colors text-gray-600 ${isMaxed ? 'opacity-50 cursor-not-allowed bg-gray-100' : 'hover:bg-gray-200'}`} 
-                                onClick={() => !isMaxed && updateItem(idx, { quantity: item.quantity + 1 })}
+                                className="w-8 h-full rounded-r-lg transition-colors text-gray-600 hover:bg-gray-200" 
+                                onClick={() => updateItem(idx, { quantity: item.quantity + 1 })}
                               >
                                 <Plus className="w-3 h-3 mx-auto"/>
                              </button>
@@ -362,7 +348,14 @@ export const POSCounter: React.FC<POSCounterProps> = ({ products, initialOrder, 
                               />
                            </div>
                         </div>
-                        {isMaxed && <p className="text-[10px] text-red-500 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3"/> Max stock reached</p>}
+                        {isExceeding && (
+                          <div className="flex items-start gap-1.5 mt-2 bg-blue-50 p-2 rounded-lg border border-blue-100">
+                             <CheckCircle2 className="w-3 h-3 text-blue-500 shrink-0 mt-0.5" />
+                             <p className="text-[10px] text-blue-700 leading-tight font-medium">
+                               Stock insufficient. Item will be added to production "Needs" list.
+                             </p>
+                          </div>
+                        )}
                      </motion.div>
                    );
                  })}

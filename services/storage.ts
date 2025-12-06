@@ -2,7 +2,7 @@
 import { Product, Order, OrderStatus, Expense } from '../types';
 
 const STORAGE_KEYS = {
-  PRODUCTS: 'print_bazar_products',
+  PRODUCTS: 'print_bazar_products_v2', // Version bumped to force new seed data load
   ORDERS: 'print_bazar_orders',
   ROUGH_WORK: 'print_bazar_rough_work',
   EXPENSES: 'print_bazar_expenses',
@@ -10,10 +10,16 @@ const STORAGE_KEYS = {
 
 // Initial Seed Data
 const SEED_PRODUCTS: Product[] = [
-  { id: '1', name: 'A4 B&W Print', category: 'Document', costPrice: 1.5, sellingPrice: 5, quantity: 500, minStock: 100 },
-  { id: '2', name: 'A4 Color Print', category: 'Document', costPrice: 4, sellingPrice: 15, quantity: 200, minStock: 50 },
-  { id: '3', name: 'Spiral Binding', category: 'Service', costPrice: 15, sellingPrice: 40, quantity: 30, minStock: 10 },
-  { id: '4', name: 'Glossy Photo Paper', category: 'Photo', costPrice: 8, sellingPrice: 25, quantity: 45, minStock: 15 },
+  { id: '101', name: 'Beee', category: 'Practical file', costPrice: 45, sellingPrice: 75, quantity: 5, minStock: 2 },
+  { id: '102', name: 'Chemistry (45page)', category: 'Practical file', costPrice: 34, sellingPrice: 65, quantity: 4, minStock: 2 },
+  { id: '103', name: 'Chemistry 39 page', category: 'Practical file', costPrice: 30, sellingPrice: 65, quantity: 3, minStock: 2 },
+  { id: '104', name: 'Chemistry 39page sprial', category: 'Practical file', costPrice: 45, sellingPrice: 80, quantity: 0, minStock: 2 },
+  { id: '105', name: 'Civil', category: 'General', costPrice: 29, sellingPrice: 60, quantity: 1, minStock: 2 },
+  { id: '106', name: 'Manufacturing', category: 'Practical file', costPrice: 57, sellingPrice: 85, quantity: 9, minStock: 2 },
+  { id: '107', name: 'Mechanical file', category: 'Practical file', costPrice: 32, sellingPrice: 65, quantity: 5, minStock: 2 },
+  { id: '108', name: 'Physics file', category: 'Practical file', costPrice: 46, sellingPrice: 75, quantity: 2, minStock: 2 },
+  { id: '109', name: 'Digital system', category: 'Practical file', costPrice: 33, sellingPrice: 60, quantity: 1, minStock: 2 },
+  { id: '110', name: 'OOPM', category: 'Practical file', costPrice: 32, sellingPrice: 55, quantity: 2, minStock: 2 },
 ];
 
 export const getProducts = (): Product[] => {

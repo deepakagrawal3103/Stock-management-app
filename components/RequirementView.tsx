@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import { Product, Order, OrderStatus } from '../types';
 import { Card } from './ui/Common';
@@ -83,24 +84,24 @@ export const RequirementView: React.FC<RequirementViewProps> = ({ products, orde
                 {item.needed > 0 && (
                   <span className="inline-flex items-center px-2 py-1 rounded-lg text-xs font-bold bg-red-100 text-red-700 gap-1 animate-pulse">
                     <AlertTriangle className="w-3 h-3" />
-                    Short {item.needed}
+                    Short: {item.needed}
                   </span>
                 )}
               </div>
               
               <div className="flex gap-2">
                 <div className="flex-1 bg-gray-50 p-2.5 rounded-xl border border-gray-100 text-center">
-                   <div className="text-[10px] text-gray-400 uppercase font-bold mb-1">Stock</div>
+                   <div className="text-[10px] text-gray-400 uppercase font-bold mb-1">Stock (Have)</div>
                    <div className={`font-bold text-sm ${item.currentStock < 5 ? 'text-red-600' : 'text-gray-900'}`}>{item.currentStock}</div>
                 </div>
                 <div className="flex-1 bg-gray-50 p-2.5 rounded-xl border border-gray-100 text-center">
-                   <div className="text-[10px] text-gray-400 uppercase font-bold mb-1">Order</div>
+                   <div className="text-[10px] text-gray-400 uppercase font-bold mb-1">Required</div>
                    <div className="font-bold text-sm text-gray-900">{item.orderedQty}</div>
                 </div>
                 <div className={`flex-1 p-2.5 rounded-xl border text-center ${item.needed > 0 ? "bg-red-50 border-red-100" : "bg-gray-50 border-gray-100"}`}>
-                   <div className={`text-[10px] uppercase font-bold mb-1 ${item.needed > 0 ? "text-red-600" : "text-gray-400"}`}>Need</div>
+                   <div className={`text-[10px] uppercase font-bold mb-1 ${item.needed > 0 ? "text-red-600" : "text-gray-400"}`}>Deficit</div>
                    <div className={`font-bold text-sm ${item.needed > 0 ? "text-red-700" : "text-gray-400"}`}>
-                     {item.needed > 0 ? item.needed : '-'}
+                     {item.needed > 0 ? item.needed : '0'}
                    </div>
                 </div>
               </div>
@@ -114,9 +115,9 @@ export const RequirementView: React.FC<RequirementViewProps> = ({ products, orde
             <thead className="bg-gray-50/50">
               <tr>
                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Product</th>
-                <th className="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">In Stock</th>
-                <th className="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Ordered</th>
-                <th className="px-6 py-4 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">Action Needed</th>
+                <th className="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Stock (Have)</th>
+                <th className="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Total Required</th>
+                <th className="px-6 py-4 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">Deficit (Print/Buy)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -138,7 +139,7 @@ export const RequirementView: React.FC<RequirementViewProps> = ({ products, orde
                     {item.needed > 0 ? (
                       <span className="inline-flex items-center px-3 py-1 rounded-lg text-sm font-bold bg-red-100 text-red-700 gap-1.5 shadow-sm">
                         <AlertTriangle className="w-3.5 h-3.5" />
-                        Print {item.needed}
+                        Short: {item.needed}
                       </span>
                     ) : (
                       <span className="text-emerald-600 text-xs font-bold uppercase tracking-wider bg-emerald-50 px-2 py-1 rounded-lg">Fulfilled</span>
