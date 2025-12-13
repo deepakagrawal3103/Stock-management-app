@@ -1,15 +1,16 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { UnpaidWriting } from '../types';
 import { v2 } from '../services/storage';
 import { Button, Card, Input, Modal, Badge, Textarea } from './ui/Common';
 import { RoughWork } from './RoughWork'; // Integrated Rough Work
-import { Plus, Trash2, CheckCircle, AlertTriangle, Book, PenTool } from 'lucide-react';
+import { Plus, Trash2, CheckCircle, AlertTriangle, Book, PenTool, Search, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const UnpaidWritingsManager: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'CREDIT' | 'ROUGH'>('CREDIT');
   const [writings, setWritings] = useState<UnpaidWriting[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newWriting, setNewWriting] = useState<Partial<UnpaidWriting>>({
     title: '', description: '', amount: 0, category: 'Unpaid'
@@ -57,12 +58,20 @@ export const UnpaidWritingsManager: React.FC = () => {
     }
   };
 
+  const filteredWritings = useMemo(() => {
+    return writings.filter(w => 
+      w.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      w.description.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [writings, searchTerm]);
+
   const totalUnpaid = writings.filter(w => w.status === 'UNPAID').reduce((sum, w) => sum + w.amount, 0);
+  const unpaidCount = writings.filter(w => w.status === 'UNPAID').length;
 
   return (
     <div className="space-y-6">
        {/* Tabs */}
-       <div className="flex p-1 bg-white border border-gray-200 rounded-xl w-full max-w-md mx-auto shadow-sm">
+       <div className="flex p-1 bg-white border border-gray-200 rounded-xl w-full max-w-md mx-auto shadow-sm sticky top-20 z-20">
         <button
           onClick={() => setActiveTab('CREDIT')}
           className={`flex-1 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${
@@ -70,6 +79,11 @@ export const UnpaidWritingsManager: React.FC = () => {
           }`}
         >
           <Book className="w-4 h-4" /> Credit Book
+          {unpaidCount > 0 && (
+             <span className="bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full text-[10px] min-w-[1.25rem] text-center">
+               {unpaidCount}
+             </span>
+          )}
         </button>
         <button
           onClick={() => setActiveTab('ROUGH')}
@@ -109,13 +123,28 @@ export const UnpaidWritingsManager: React.FC = () => {
               </Card>
             </div>
 
-            <div className="flex justify-between items-center bg-white p-3 rounded-2xl shadow-soft border border-gray-100">
-              <h2 className="font-bold text-gray-900 ml-2">Unpaid Records</h2>
-              <Button onClick={() => setIsModalOpen(true)} icon={Plus} className="shadow-lg shadow-brand-500/20">Add Record</Button>
+            {/* Actions Bar */}
+            <div className="flex flex-col sm:flex-row gap-3 bg-white p-3 rounded-2xl shadow-soft border border-gray-100 sticky top-36 z-10">
+              <div className="relative flex-1">
+                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                 <input 
+                    type="text" 
+                    placeholder="Search records..." 
+                    className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 focus:bg-white transition-all outline-none"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                 />
+                 {searchTerm && (
+                   <button onClick={() => setSearchTerm('')} className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600">
+                     <X className="w-4 h-4" />
+                   </button>
+                 )}
+              </div>
+              <Button onClick={() => setIsModalOpen(true)} icon={Plus} className="shadow-lg shadow-brand-500/20 whitespace-nowrap">Add Record</Button>
             </div>
 
             <div className="grid gap-3">
-              {writings.map((item) => (
+              {filteredWritings.map((item) => (
                 <Card key={item.id} className={`p-4 border-l-4 ${item.status === 'UNPAID' ? 'border-l-red-500' : 'border-l-emerald-500'} transition-all`}>
                   <div className="flex justify-between items-start">
                     <div>
@@ -139,16 +168,18 @@ export const UnpaidWritingsManager: React.FC = () => {
                   </div>
                 </Card>
               ))}
-              {writings.length === 0 && (
-                <div className="text-center py-10 text-gray-400 bg-white rounded-2xl border border-dashed border-gray-200">No unpaid records found.</div>
+              {filteredWritings.length === 0 && (
+                <div className="text-center py-10 text-gray-400 bg-white rounded-2xl border border-dashed border-gray-200">
+                   {searchTerm ? 'No matching records found.' : 'No unpaid records found.'}
+                </div>
               )}
             </div>
 
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Add Unpaid Writing">
               <div className="space-y-4">
-                <Input label="Title" value={newWriting.title} onChange={e => setNewWriting({...newWriting, title: e.target.value})} placeholder="e.g. Ramesh Credits" />
+                <Input label="Title" value={newWriting.title} onChange={e => setNewWriting({...newWriting, title: e.target.value})} placeholder="e.g. Ramesh Credits" autoFocus />
                 <Input label="Amount" type="number" value={newWriting.amount} onChange={e => setNewWriting({...newWriting, amount: parseFloat(e.target.value)})} />
-                <Textarea label="Description" value={newWriting.description} onChange={e => setNewWriting({...newWriting, description: e.target.value})} />
+                <Textarea label="Description" value={newWriting.description} onChange={e => setNewWriting({...newWriting, description: e.target.value})} placeholder="Optional details..." />
                 <Button onClick={handleSave} className="w-full mt-4">Save Record</Button>
               </div>
             </Modal>

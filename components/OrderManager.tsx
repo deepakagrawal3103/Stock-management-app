@@ -236,6 +236,41 @@ export const OrderManager: React.FC<OrderManagerProps> = ({ orders, products, on
     }, 500);
   };
 
+  // Calculate counts for badges
+  const statusCounts = useMemo(() => {
+    const c = {
+        ALL: orders.length,
+        PENDING: 0,
+        UNPAID: 0,
+        COMPLETED: 0
+    };
+    
+    // Optimization: Read storage once for map
+    const catMap = v2.getOrderCategoryMap();
+    const cats = v2.getCategories();
+    
+    orders.forEach(o => {
+       if (o.status === OrderStatus.PENDING) c.PENDING++;
+       if (o.status === OrderStatus.COMPLETED) c.COMPLETED++;
+       
+       // Unpaid Logic (consistent with filter view)
+       const paid = o.paymentDetails?.totalPaid || 0;
+       const remaining = Math.max(0, o.totalAmount - paid);
+       
+       const mapping = catMap.find(m => m.orderId === o.id);
+       const catName = mapping ? cats.find(ct => ct.id === mapping.categoryId)?.name : '';
+       
+       const isExplicitUnpaid = catName === 'Unpaid';
+       const isDeliveredUnpaid = (o.status === OrderStatus.COMPLETED || o.status === OrderStatus.DELIVERED) && remaining > 0;
+       
+       if (remaining > 0 && (isExplicitUnpaid || isDeliveredUnpaid)) {
+           c.UNPAID++;
+       }
+    });
+    
+    return c;
+  }, [orders]);
+
   const filteredOrders = useMemo(() => {
     let list = orders;
     
@@ -312,13 +347,18 @@ export const OrderManager: React.FC<OrderManagerProps> = ({ orders, products, on
               <button
                 key={status}
                 onClick={() => setView(status)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
                   view === status 
                     ? 'bg-gray-900 text-white shadow-md' 
                     : 'bg-transparent text-gray-500 hover:bg-gray-100'
                 }`}
               >
                 {status.charAt(0) + status.slice(1).toLowerCase()}
+                {statusCounts[status] > 0 && (
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${view === status ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-600'}`}>
+                    {statusCounts[status]}
+                  </span>
+                )}
               </button>
             ))}
           </div>
