@@ -90,3 +90,55 @@ export interface AIResponse {
   voiceResponse: string;
   actionJSON: AIAction;
 }
+
+// --- V2 ADDITIONS ---
+
+export interface UnpaidWriting {
+  id: string;
+  title: string;
+  description: string;
+  amount: number;
+  category: string;
+  relatedOrderId?: string;
+  createdAt: string;
+  status: 'UNPAID' | 'PAID';
+}
+
+export interface PartialPayment {
+  id: string;
+  orderId: string;
+  amount: number;
+  method: 'ONLINE' | 'CASH';
+  reference?: string;
+  createdAt: string;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  color?: string; // Hex code or tailwind class name reference
+}
+
+export interface OrderCategoryMap {
+  orderId: string;
+  categoryId: string;
+}
+
+// --- NEW V2 MODULES (ADDITIVE) ---
+
+export type StoreHouseName = 'Deepak' | 'Dimple';
+
+export interface StoreStock {
+  productId: string;
+  deepakStock: number; // Dewas
+  dimpleStock: number; // Indore
+  lastUpdated: string;
+}
+
+export interface ManualNeed {
+  id: string;
+  productId: string;
+  totalRequired: number;
+  note: string;
+  createdAt: string;
+}

@@ -1,18 +1,20 @@
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Order, OrderStatus } from '../types';
+import { v2 } from '../services/storage'; // Import V2 for partial payments
 import { Card } from './ui/Common';
-import { DollarSign, ShoppingBag, Truck, TrendingUp, Calendar, Filter, ArrowUpRight } from 'lucide-react';
+import { DollarSign, ShoppingBag, Truck, TrendingUp, Calendar, Filter, ArrowUpRight, PieChart } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, CartesianGrid } from 'recharts';
 import { motion } from 'framer-motion';
 
 interface DashboardProps {
   orders: Order[];
+  onNavigate?: (page: string) => void;
 }
 
 type DateRange = 'TODAY' | 'YESTERDAY' | 'WEEK' | 'MONTH' | 'YEAR' | 'CUSTOM';
 
-export const Dashboard: React.FC<DashboardProps> = ({ orders }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ orders, onNavigate }) => {
   const [dateRange, setDateRange] = useState<DateRange>('TODAY');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
@@ -62,7 +64,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ orders }) => {
 
     if (!orders) return {
         totalOrders: 0, pendingOrders: 0, deliveredOrders: 0, completedOrders: 0,
-        revenueCash: 0, revenueOnline: 0, totalRevenue: 0, totalProfit: 0
+        revenueCash: 0, revenueOnline: 0, totalRevenue: 0, totalProfit: 0,
+        partialCash: 0, partialOnline: 0
     };
 
     orders.forEach(o => {
@@ -81,29 +84,46 @@ export const Dashboard: React.FC<DashboardProps> = ({ orders }) => {
          if (isInRangeCompletion) {
             completedCount++;
             
-            // Robust check for paymentDetails to prevent crashes on old data
             const pd = o.paymentDetails || { cashAmount: 0, onlineAmount: 0, totalPaid: 0, method: 'NONE' };
-            
-            // Fallback to totalPaid if breakdown is missing (legacy orders)
-            if ((pd.cashAmount || 0) === 0 && (pd.onlineAmount || 0) === 0 && (pd.totalPaid || 0) > 0) {
+            const paid = pd.totalPaid || 0;
+            const remaining = Math.max(0, o.totalAmount - paid);
+            const isUnpaid = remaining > 1; // Tolerance for float
+
+            // Revenue Calc (Cash flow basis - always count what we received)
+            if (pd.cashAmount || pd.onlineAmount) {
+                revenueCash += (pd.cashAmount || 0);
+                revenueOnline += (pd.onlineAmount || 0);
+            } else if (pd.totalPaid > 0) {
                if (pd.method === 'CASH') revenueCash += pd.totalPaid;
                else revenueOnline += pd.totalPaid;
-            } else {
-               revenueCash += pd.cashAmount || 0;
-               revenueOnline += pd.onlineAmount || 0;
             }
 
-            let orderCost = 0;
-            let orderSell = 0;
-            if (o.items && Array.isArray(o.items)) {
-                o.items.forEach(item => {
-                orderCost += (item.costPriceSnapshot || 0) * (item.quantity || 0);
-                orderSell += (item.sellingPriceSnapshot || 0) * (item.quantity || 0);
-                });
+            // Profit Calc: Exclude profit if order is Unpaid (as per request)
+            if (!isUnpaid) {
+               let orderCost = 0;
+               let orderSell = 0;
+               if (o.items && Array.isArray(o.items)) {
+                   o.items.forEach(item => {
+                   orderCost += (item.costPriceSnapshot || 0) * (item.quantity || 0);
+                   orderSell += (item.sellingPriceSnapshot || 0) * (item.quantity || 0);
+                   });
+               }
+               const profit = (orderSell - orderCost) - (o.discount || 0);
+               totalProfit += profit;
             }
-            const profit = (orderSell - orderCost) - (o.discount || 0);
-            totalProfit += profit;
          }
+      }
+    });
+
+    // --- V2 Partial Payments Calculation (Additive) ---
+    const partials = v2.getPartialPayments();
+    let partialCash = 0;
+    let partialOnline = 0;
+    partials.forEach(p => {
+      const pDate = new Date(p.createdAt);
+      if (pDate >= startDate && pDate <= endDate) {
+        if (p.method === 'CASH') partialCash += p.amount;
+        else partialOnline += p.amount;
       }
     });
 
@@ -115,7 +135,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ orders }) => {
       revenueCash,
       revenueOnline,
       totalRevenue: revenueCash + revenueOnline,
-      totalProfit
+      totalProfit,
+      partialCash, 
+      partialOnline
     };
   }, [orders, dateRange, customStart, customEnd]);
 
@@ -128,8 +150,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ orders }) => {
       ];
     } else {
        return [
-         { name: 'Cash', value: filteredStats.revenueCash, color: '#16a34a' },
-         { name: 'Online', value: filteredStats.revenueOnline, color: '#2563eb' }
+         { name: 'Cash', value: filteredStats.revenueCash + filteredStats.partialCash, color: '#16a34a' },
+         { name: 'Online', value: filteredStats.revenueOnline + filteredStats.partialOnline, color: '#2563eb' }
        ];
     }
   }, [filteredStats, dateRange]);
@@ -203,25 +225,27 @@ export const Dashboard: React.FC<DashboardProps> = ({ orders }) => {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard 
           title="Total Revenue"
-          value={`₹${filteredStats.totalRevenue.toFixed(0)}`}
-          subValue={`Cash: ${filteredStats.revenueCash} • Onl: ${filteredStats.revenueOnline}`}
+          value={`₹${(filteredStats.totalRevenue + filteredStats.partialCash + filteredStats.partialOnline).toFixed(0)}`}
+          subValue={`Including partials`}
           icon={DollarSign}
           color="emerald"
         />
         <StatCard 
           title="Total Profit"
           value={`₹${filteredStats.totalProfit.toFixed(0)}`}
-          subValue="Net earnings"
+          subValue="Est. earnings"
           icon={TrendingUp}
           color="indigo"
         />
-        <StatCard 
-          title="Pending Orders"
-          value={filteredStats.pendingOrders.toString()}
-          subValue="Needs action"
-          icon={Truck}
-          color="amber"
-        />
+        <div onClick={() => onNavigate?.('PENDING_PAGE')} className="cursor-pointer transition-transform active:scale-95">
+          <StatCard 
+            title="Pending Orders"
+            value={filteredStats.pendingOrders.toString()}
+            subValue="Click to view all"
+            icon={Truck}
+            color="amber"
+          />
+        </div>
         <StatCard 
           title="Completed"
           value={filteredStats.completedOrders.toString()}
@@ -260,7 +284,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ orders }) => {
         <motion.div variants={item} className="bg-white rounded-2xl shadow-soft border border-gray-100 p-6">
            <h3 className="text-sm font-bold text-gray-900 mb-6 flex items-center gap-2">
              <DollarSign className="w-4 h-4 text-gray-400" />
-             Payment Summary
+             Detailed Payment Summary
            </h3>
            <div className="space-y-4">
               <div className="flex items-center p-4 bg-emerald-50/50 rounded-xl border border-emerald-100/50">
@@ -268,8 +292,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ orders }) => {
                   <DollarSign className="w-5 h-5" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wide">Cash Collected</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">₹{filteredStats.revenueCash.toFixed(2)}</p>
+                  <div className="flex justify-between items-center">
+                    <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wide">Cash Collected</p>
+                    {filteredStats.partialCash > 0 && <span className="text-[10px] bg-emerald-200 px-1.5 rounded text-emerald-800">+₹{filteredStats.partialCash} partials</span>}
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">₹{(filteredStats.revenueCash + filteredStats.partialCash).toFixed(2)}</p>
                 </div>
               </div>
               <div className="flex items-center p-4 bg-blue-50/50 rounded-xl border border-blue-100/50">
@@ -277,10 +304,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ orders }) => {
                   <ArrowUpRight className="w-5 h-5" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide">Online Collected</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">₹{filteredStats.revenueOnline.toFixed(2)}</p>
+                  <div className="flex justify-between items-center">
+                    <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide">Online Collected</p>
+                    {filteredStats.partialOnline > 0 && <span className="text-[10px] bg-blue-200 px-1.5 rounded text-blue-800">+₹{filteredStats.partialOnline} partials</span>}
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">₹{(filteredStats.revenueOnline + filteredStats.partialOnline).toFixed(2)}</p>
                 </div>
               </div>
+              {(filteredStats.partialCash > 0 || filteredStats.partialOnline > 0) && (
+                 <div className="text-xs text-center text-gray-400 pt-2 border-t border-dashed border-gray-200">
+                    Includes partial payments from incomplete orders.
+                 </div>
+              )}
            </div>
         </motion.div>
       </div>

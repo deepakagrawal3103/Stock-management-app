@@ -5,10 +5,13 @@ import * as Storage from './services/storage';
 import { Dashboard } from './components/Dashboard';
 import { ProductManager } from './components/ProductManager';
 import { OrderManager } from './components/OrderManager';
-import { RequirementView } from './components/RequirementView';
-import { RoughWork } from './components/RoughWork';
+import { RequirementView } from './components/RequirementView'; // Now acts as "Needs Hub"
+import { UnpaidWritingsManager } from './components/UnpaidWritingsManager'; // Now acts as "Records Center"
 import { VoiceAssistant } from './components/VoiceAssistant';
-import { LayoutDashboard, Package, ShoppingCart, ClipboardList, PenTool, Printer } from 'lucide-react';
+import { AdvancedSearch } from './components/AdvancedSearch';
+import { PendingOrdersPage } from './components/PendingOrdersPage'; 
+
+import { LayoutDashboard, Package, ShoppingCart, ClipboardList, Printer, Search, Book } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Toast Notification
@@ -25,7 +28,8 @@ const Toast = ({ message, type, onClose }: { message: string, type: 'success' | 
 );
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'PRODUCTS' | 'ORDERS' | 'REQUIREMENT' | 'NOTES'>('DASHBOARD');
+  const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'PRODUCTS' | 'ORDERS' | 'NEEDS' | 'RECORDS' | 'PENDING_PAGE'>('DASHBOARD');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   
   // Load data immediately on initialization to prevent blank screens
   const [products, setProducts] = useState<Product[]>(() => Storage.getProducts() || []);
@@ -138,9 +142,9 @@ const App: React.FC = () => {
   const navItems = [
     { id: 'DASHBOARD', icon: LayoutDashboard, label: 'Home' },
     { id: 'ORDERS', icon: ShoppingCart, label: 'Orders' },
-    { id: 'REQUIREMENT', icon: ClipboardList, label: 'Needs' },
-    { id: 'NOTES', icon: PenTool, label: 'Notes' },
-    { id: 'PRODUCTS', icon: Package, label: 'Stock' },
+    { id: 'PRODUCTS', icon: Package, label: 'Products' },
+    { id: 'NEEDS', icon: ClipboardList, label: 'Needs' },
+    { id: 'RECORDS', icon: Book, label: 'Records' },
   ] as const;
 
   return (
@@ -159,31 +163,44 @@ const App: React.FC = () => {
               </div>
             </div>
             
-            {/* Desktop Navigation */}
-            <nav className="hidden md:flex items-center gap-1 bg-gray-100/50 p-1 rounded-xl">
-               {navItems.map(item => (
-                 <button 
-                   key={item.id}
-                   onClick={() => setActiveTab(item.id)} 
-                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                     activeTab === item.id 
-                       ? 'bg-white text-brand-600 shadow-sm' 
-                       : 'text-gray-500 hover:text-gray-900 hover:bg-white/50'
-                   }`}
-                 >
-                   {item.label}
-                 </button>
-               ))}
-            </nav>
+            <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => setIsSearchOpen(true)}
+                  className="p-2.5 text-gray-500 hover:text-brand-600 hover:bg-gray-100 rounded-xl transition-colors md:mr-4"
+                >
+                  <Search className="w-5 h-5" />
+                </button>
+                
+                {/* Desktop Navigation */}
+                <nav className="hidden md:flex items-center gap-1 bg-gray-100/50 p-1 rounded-xl">
+                  {navItems.map(item => (
+                    <button 
+                      key={item.id}
+                      onClick={() => setActiveTab(item.id as any)} 
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                        activeTab === item.id 
+                          ? 'bg-white text-brand-600 shadow-sm' 
+                          : 'text-gray-500 hover:text-gray-900 hover:bg-white/50'
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </nav>
+            </div>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* We removed AnimatePresence and initial opacity 0 here to fix loading/refresh issues */}
         <div className="w-full">
-            {activeTab === 'DASHBOARD' && <Dashboard orders={orders} />}
+            {activeTab === 'DASHBOARD' && (
+              <Dashboard 
+                orders={orders} 
+                onNavigate={(page) => setActiveTab(page as any)} 
+              />
+            )}
             
             {activeTab === 'ORDERS' && (
               <OrderManager 
@@ -195,6 +212,10 @@ const App: React.FC = () => {
               />
             )}
             
+            {activeTab === 'PENDING_PAGE' && (
+              <PendingOrdersPage orders={orders} onBack={() => setActiveTab('DASHBOARD')} />
+            )}
+
             {activeTab === 'PRODUCTS' && (
               <ProductManager 
                 products={products} 
@@ -204,24 +225,24 @@ const App: React.FC = () => {
               />
             )}
 
-            {activeTab === 'REQUIREMENT' && (
+            {activeTab === 'NEEDS' && (
               <RequirementView products={products} orders={orders} />
             )}
 
-            {activeTab === 'NOTES' && (
-              <RoughWork />
+            {activeTab === 'RECORDS' && (
+               <UnpaidWritingsManager />
             )}
         </div>
       </main>
 
       {/* Mobile Footer Navigation */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-gray-200 z-50 pb-safe shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.05)]">
-        <div className="flex justify-around items-center h-16">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-gray-200 z-50 pb-safe shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.05)] overflow-x-auto no-scrollbar">
+        <div className="flex items-center h-16 px-2 min-w-max mx-auto max-w-lg justify-between w-full">
           {navItems.map(item => (
             <button 
               key={item.id}
-              onClick={() => setActiveTab(item.id)} 
-              className="relative flex flex-col items-center justify-center w-full h-full space-y-1 group"
+              onClick={() => setActiveTab(item.id as any)} 
+              className="relative flex flex-col items-center justify-center flex-1 h-full space-y-1 group"
             >
               {activeTab === item.id && (
                 <motion.div 
@@ -229,7 +250,7 @@ const App: React.FC = () => {
                   className="absolute top-0 w-8 h-1 bg-brand-600 rounded-b-full shadow-[0_0_10px_rgba(2,132,199,0.5)]"
                 />
               )}
-              <item.icon className={`w-6 h-6 transition-colors duration-200 ${activeTab === item.id ? 'text-brand-600' : 'text-gray-400 group-hover:text-gray-600'}`} />
+              <item.icon className={`w-5 h-5 transition-colors duration-200 ${activeTab === item.id ? 'text-brand-600' : 'text-gray-400 group-hover:text-gray-600'}`} />
               <span className={`text-[10px] font-medium transition-colors duration-200 ${activeTab === item.id ? 'text-brand-600' : 'text-gray-400 group-hover:text-gray-600'}`}>
                 {item.label}
               </span>
@@ -237,6 +258,14 @@ const App: React.FC = () => {
           ))}
         </div>
       </nav>
+
+      <AdvancedSearch 
+        isOpen={isSearchOpen} 
+        onClose={() => setIsSearchOpen(false)} 
+        orders={orders} 
+        products={products}
+        roughWork={Storage.getRoughWork()}
+      />
 
       <VoiceAssistant />
 

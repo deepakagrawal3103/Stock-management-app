@@ -3,7 +3,8 @@ import React, { useState, useMemo } from 'react';
 import { Product } from '../types';
 import { Button, Card, Input, Modal, Badge } from './ui/Common';
 import { ExpenseTracker } from './ExpenseTracker';
-import { Plus, Edit2, Trash2, Search, AlertTriangle, Package, DollarSign, TrendingUp, Receipt, Archive } from 'lucide-react';
+import { StoreHouseStock } from './StoreHouseStock'; // Integrated Store Stock
+import { Plus, Edit2, Trash2, Search, Package, TrendingUp, Receipt, Archive, MapPin } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface ProductManagerProps {
@@ -14,7 +15,7 @@ interface ProductManagerProps {
 }
 
 export const ProductManager: React.FC<ProductManagerProps> = ({ products, onAddProduct, onUpdateProduct, onDeleteProduct }) => {
-  const [activeTab, setActiveTab] = useState<'INVENTORY' | 'EXPENSES'>('INVENTORY');
+  const [activeTab, setActiveTab] = useState<'INVENTORY' | 'STORE' | 'EXPENSES'>('INVENTORY');
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -63,18 +64,26 @@ export const ProductManager: React.FC<ProductManagerProps> = ({ products, onAddP
   return (
     <div className="space-y-6">
       {/* Sub-Navigation Tabs */}
-      <div className="flex p-1 bg-white border border-gray-200 rounded-xl w-full max-w-md mx-auto shadow-sm">
+      <div className="flex p-1 bg-white border border-gray-200 rounded-xl w-full max-w-lg mx-auto shadow-sm">
         <button
           onClick={() => setActiveTab('INVENTORY')}
-          className={`flex-1 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+          className={`flex-1 py-2 rounded-lg text-xs md:text-sm font-bold flex items-center justify-center gap-2 transition-all ${
             activeTab === 'INVENTORY' ? 'bg-brand-50 text-brand-700 shadow-sm ring-1 ring-brand-200' : 'text-gray-500 hover:text-gray-700'
           }`}
         >
-          <Archive className="w-4 h-4" /> Stock Items
+          <Archive className="w-4 h-4" /> Stock
+        </button>
+        <button
+          onClick={() => setActiveTab('STORE')}
+          className={`flex-1 py-2 rounded-lg text-xs md:text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+            activeTab === 'STORE' ? 'bg-purple-50 text-purple-700 shadow-sm ring-1 ring-purple-200' : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <MapPin className="w-4 h-4" /> Locations
         </button>
         <button
           onClick={() => setActiveTab('EXPENSES')}
-          className={`flex-1 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+          className={`flex-1 py-2 rounded-lg text-xs md:text-sm font-bold flex items-center justify-center gap-2 transition-all ${
             activeTab === 'EXPENSES' ? 'bg-orange-50 text-orange-700 shadow-sm ring-1 ring-orange-200' : 'text-gray-500 hover:text-gray-700'
           }`}
         >
@@ -84,13 +93,12 @@ export const ProductManager: React.FC<ProductManagerProps> = ({ products, onAddP
 
       <AnimatePresence mode="wait">
         {activeTab === 'EXPENSES' ? (
-          <motion.div 
-            key="expenses"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-          >
+          <motion.div key="expenses" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
             <ExpenseTracker />
+          </motion.div>
+        ) : activeTab === 'STORE' ? (
+          <motion.div key="store" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+            <StoreHouseStock />
           </motion.div>
         ) : (
           <motion.div 
