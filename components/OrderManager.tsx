@@ -8,7 +8,6 @@ import { PartialPaymentModal } from './PartialPaymentModal';
 import { CategoryManager } from './CategoryManager';
 import { OrderDetailView } from './OrderDetailView';
 import { Plus, Trash2, CheckCircle, Search, Edit, Phone, MessageCircle, FileText, Calendar, Tag, CreditCard, Eye, AlertCircle, ChevronRight, Filter, X } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 
 interface OrderManagerProps {
   orders: Order[];
@@ -141,23 +140,23 @@ export const OrderManager: React.FC<OrderManagerProps> = ({ orders, products, on
     
     const text = `Namaste from Print Bazar,
 Your order is ready. ✅
-💰 Total: ₹${order.totalAmount.toFixed(0)}
-📍 Collect from: Near water tank, bus route board.
-Thanks!`;
+
+Please confirm whether you will be coming tomorrow or not.
+
+💰 Total Bill: ₹${order.totalAmount.toFixed(0)}
+
+📍 Collection Address:
+Bus route board jha bus routes likhe hote hai and driver bethte hai uske just pass pani ki tanki hai vha.
+
+⏰ Important:
+Please collect files before going in the class and if u are already in class make sure apko koi director ya teacher roke na.
+Agr koi bhi apko rokta hai toh yeh mat bolna ki Print Bazar wale bhaiya s print lene jaa rhe hai,
+just tell any of ur personal reasons as if u say that there will be lot of questions.
+
+Thank you,
+Print Bazar`;
     const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
     window.open(url, '_blank');
-  };
-
-  const printOrderInvoice = (order: Order) => {
-     const printWindow = window.open('', '_blank', 'width=600,height=800');
-    if (!printWindow) {
-      alert("Pop-up blocked.");
-      return;
-    }
-    // ... (Invoice HTML content kept same for brevity, assuming standard invoice logic)
-    printWindow.document.write('<html><body>Invoice Printing...</body></html>'); // Simplified for this snippet
-    printWindow.document.close();
-    printWindow.print();
   };
 
   // Calculate counts for badges
@@ -277,37 +276,30 @@ Thanks!`;
         </div>
 
         {/* Row 2: Collapsible Date Filters */}
-        <AnimatePresence>
-          {showFilters && (
-            <motion.div 
-              initial={{ height: 0, opacity: 0 }} 
-              animate={{ height: 'auto', opacity: 1 }} 
-              exit={{ height: 0, opacity: 0 }}
-              className="overflow-hidden"
-            >
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 mb-1 flex flex-col sm:flex-row gap-3 items-center text-sm">
-                 <div className="flex items-center gap-2 w-full sm:w-auto">
-                    <Calendar className="w-4 h-4 text-slate-500" />
-                    <select 
-                      className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-bold text-slate-700 outline-none w-full sm:w-auto" 
-                      value={dateFilterMode} 
-                      onChange={e => setDateFilterMode(e.target.value as any)}
-                    >
-                      <option value="ALL">All Dates</option>
-                      <option value="CUSTOM">Custom Date Range</option>
-                    </select>
-                 </div>
-                 {dateFilterMode === 'CUSTOM' && (
-                    <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-2 w-full sm:w-auto">
-                      <input type="date" className="flex-1 bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs outline-none" value={filterFrom} onChange={e => setFilterFrom(e.target.value)} />
-                      <span className="text-slate-300">-</span>
-                      <input type="date" className="flex-1 bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs outline-none" value={filterTo} onChange={e => setFilterTo(e.target.value)} />
-                    </motion.div>
-                 )}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {showFilters && (
+          <div className="overflow-hidden">
+            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 mb-1 flex flex-col sm:flex-row gap-3 items-center text-sm">
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <Calendar className="w-4 h-4 text-slate-500" />
+                  <select 
+                    className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-bold text-slate-700 outline-none w-full sm:w-auto" 
+                    value={dateFilterMode} 
+                    onChange={e => setDateFilterMode(e.target.value as any)}
+                  >
+                    <option value="ALL">All Dates</option>
+                    <option value="CUSTOM">Custom Date Range</option>
+                  </select>
+                </div>
+                {dateFilterMode === 'CUSTOM' && (
+                  <div className="flex items-center gap-2 w-full sm:w-auto animate-[fadeIn_0.2s]">
+                    <input type="date" className="flex-1 bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs outline-none" value={filterFrom} onChange={e => setFilterFrom(e.target.value)} />
+                    <span className="text-slate-300">-</span>
+                    <input type="date" className="flex-1 bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs outline-none" value={filterTo} onChange={e => setFilterTo(e.target.value)} />
+                  </div>
+                )}
+            </div>
+          </div>
+        )}
 
         {/* Row 3: Status Pills (Horizontal Scroll) */}
         <div className="flex gap-2 overflow-x-auto no-scrollbar w-full pb-0.5">
@@ -333,30 +325,22 @@ Thanks!`;
       </div>
 
       {/* Unpaid Summary Header */}
-      <AnimatePresence>
-        {view === 'UNPAID' && (
-          <motion.div 
-            initial={{ height: 0, opacity: 0 }} 
-            animate={{ height: 'auto', opacity: 1 }} 
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden"
-          >
-             <div className="bg-gradient-to-r from-red-50 to-white border border-red-100 p-4 rounded-2xl flex items-center justify-between shadow-sm mx-1">
-                <div>
-                   <h3 className="text-red-800 font-bold uppercase text-[10px] tracking-wider mb-0.5">Total Unpaid</h3>
-                   <p className="text-2xl font-black text-red-600 tracking-tight">₹{totalUnpaidAmount.toFixed(0)}</p>
-                </div>
-                <div className="p-2 bg-white rounded-xl shadow-sm text-red-500 border border-red-50">
-                   <AlertCircle className="w-6 h-6" />
-                </div>
-             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {view === 'UNPAID' && (
+        <div className="overflow-hidden">
+            <div className="bg-gradient-to-r from-red-50 to-white border border-red-100 p-4 rounded-2xl flex items-center justify-between shadow-sm mx-1">
+              <div>
+                  <h3 className="text-red-800 font-bold uppercase text-[10px] tracking-wider mb-0.5">Total Unpaid</h3>
+                  <p className="text-2xl font-black text-red-600 tracking-tight">₹{totalUnpaidAmount.toFixed(0)}</p>
+              </div>
+              <div className="p-2 bg-white rounded-xl shadow-sm text-red-500 border border-red-50">
+                  <AlertCircle className="w-6 h-6" />
+              </div>
+            </div>
+        </div>
+      )}
 
       {/* List */}
-      <motion.div layout className="grid gap-3 pb-20">
-        <AnimatePresence mode="popLayout">
+      <div className="grid gap-3 pb-20">
           {filteredOrders.map(order => {
             const category = v2.getCategoryForOrder(order.id);
             const paid = order.paymentDetails?.totalPaid || 0;
@@ -364,12 +348,8 @@ Thanks!`;
             const isUnpaidView = view === 'UNPAID';
 
             return (
-              <motion.div 
+              <div 
                 key={order.id} 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                layout
               >
                 <Card className={`group border-l-4 ${isUnpaidView ? 'border-l-red-500' : 'border-l-transparent hover:border-l-brand-500'} transition-all`}>
                   <div className="p-4 flex flex-col gap-3">
@@ -444,17 +424,16 @@ Thanks!`;
                     </div>
                   </div>
                 </Card>
-              </motion.div>
+              </div>
             );
           })}
-        </AnimatePresence>
         
         {filteredOrders.length === 0 && (
            <div className="text-center py-12 text-slate-400 bg-white rounded-3xl border border-dashed border-slate-200 mx-4">
               <p className="font-medium text-sm">No orders found</p>
            </div>
         )}
-      </motion.div>
+      </div>
 
       {/* Completion Modal */}
       <Modal isOpen={isPaymentOpen} onClose={() => setIsPaymentOpen(false)} title="Complete Order">
@@ -484,7 +463,7 @@ Thanks!`;
           </div>
 
           {(paymentData.status === PaymentStatus.PAID || paymentData.status === PaymentStatus.PARTIAL) && (
-            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} className="overflow-hidden space-y-4">
+            <div className="overflow-hidden space-y-4 animate-[fadeIn_0.2s]">
                
                <div className="flex items-center gap-3 mb-2 p-3 border border-slate-100 rounded-xl">
                  <input 
@@ -523,7 +502,7 @@ Thanks!`;
                    <Input label="Amount Paid" type="number" value={paymentData.amount} onChange={e => setPaymentData({ ...paymentData, amount: e.target.value })} placeholder="0.00" />
                  </>
                )}
-            </motion.div>
+            </div>
           )}
           <Textarea label="Note" placeholder="Optional note..." value={paymentData.note} onChange={e => setPaymentData({ ...paymentData, note: e.target.value })} />
           <div className="pt-4 flex gap-3">

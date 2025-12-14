@@ -1,7 +1,6 @@
 
 import React from 'react';
 import { LucideIcon } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'danger' | 'success' | 'outline' | 'ghost' | 'glass';
@@ -36,28 +35,23 @@ export const Button: React.FC<ButtonProps> = ({
   };
 
   return (
-    <motion.button 
-      whileTap={{ scale: 0.96 }}
+    <button 
       className={`${baseStyle} ${variants[variant]} ${sizes[size]} ${className}`} 
-      {...props as any}
+      {...props}
     >
       {Icon && <Icon className={size === 'sm' ? "w-3.5 h-3.5" : "w-4 h-4"} />}
       {children}
-    </motion.button>
+    </button>
   );
 };
 
 export const Card: React.FC<{ children: React.ReactNode; className?: string; onClick?: () => void }> = ({ children, className = '', onClick }) => (
-  <motion.div 
-    initial={{ opacity: 0, y: 10 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
-    whileHover={onClick ? { y: -2, boxShadow: "0 12px 30px -8px rgba(0, 0, 0, 0.08)" } : {}}
+  <div 
     className={`bg-white rounded-2xl shadow-[0_2px_12px_-2px_rgba(0,0,0,0.06)] border border-slate-100 overflow-hidden ${className} ${onClick ? 'cursor-pointer active:scale-[0.99] transition-transform' : ''}`}
     onClick={onClick}
   >
     {children}
-  </motion.div>
+  </div>
 );
 
 export const Badge: React.FC<{ children: React.ReactNode; color?: 'gray' | 'red' | 'green' | 'blue' | 'yellow' | 'orange' | 'brand' | 'purple' }> = ({ children, color = 'gray' }) => {
@@ -86,50 +80,39 @@ interface ModalProps {
 }
 
 export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
+  if (!isOpen) return null;
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4">
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm"
-          />
-          <motion.div 
-            // Mobile: Slide up from bottom, Desktop: Fade & Scale center
-            initial={{ y: "100%", opacity: 0, scale: 0.95 }}
-            animate={{ y: 0, opacity: 1, scale: 1 }}
-            exit={{ y: "100%", opacity: 0, scale: 0.95 }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="bg-white w-full sm:rounded-3xl rounded-t-3xl shadow-2xl sm:max-w-md max-h-[90vh] flex flex-col relative z-10"
-          >
-            {/* Mobile Drag Handle */}
-            <div className="sm:hidden w-full flex justify-center pt-3 pb-1" onClick={onClose}>
-               <div className="w-12 h-1.5 bg-slate-200 rounded-full" />
-            </div>
-
-            <div className="px-6 py-4 border-b border-slate-50 flex items-center justify-between shrink-0">
-              <h3 className="text-lg font-bold text-slate-800 tracking-tight">{title}</h3>
-              <button 
-                onClick={onClose} 
-                className="p-1.5 rounded-full bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
-              >
-                <span className="sr-only">Close</span>
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            
-            <div className="p-6 overflow-y-auto overscroll-contain pb-safe">
-              {children}
-            </div>
-          </motion.div>
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4">
+        <div 
+        onClick={onClose}
+        className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm"
+        />
+        <div 
+        className="bg-white w-full sm:rounded-3xl rounded-t-3xl shadow-2xl sm:max-w-md max-h-[90vh] flex flex-col relative z-10 animate-[slideUp_0.3s_ease-out_forwards] sm:animate-none"
+        >
+        {/* Mobile Drag Handle */}
+        <div className="sm:hidden w-full flex justify-center pt-3 pb-1" onClick={onClose}>
+            <div className="w-12 h-1.5 bg-slate-200 rounded-full" />
         </div>
-      )}
-    </AnimatePresence>
+
+        <div className="px-6 py-4 border-b border-slate-50 flex items-center justify-between shrink-0">
+            <h3 className="text-lg font-bold text-slate-800 tracking-tight">{title}</h3>
+            <button 
+            onClick={onClose} 
+            className="p-1.5 rounded-full bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+            >
+            <span className="sr-only">Close</span>
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            </button>
+        </div>
+        
+        <div className="p-6 overflow-y-auto overscroll-contain pb-safe">
+            {children}
+        </div>
+        </div>
+    </div>
   );
 };
 

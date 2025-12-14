@@ -5,7 +5,6 @@ import { v2 } from '../services/storage'; // Import V2 for partial payments
 import { Card } from './ui/Common';
 import { DollarSign, ShoppingBag, Truck, TrendingUp, Calendar, Filter, ArrowUpRight, PieChart } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, CartesianGrid } from 'recharts';
-import { motion } from 'framer-motion';
 
 interface DashboardProps {
   orders: Order[];
@@ -61,14 +60,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ orders, onNavigate }) => {
     let completedCount = 0;
     let pendingCount = 0;
     let deliveredCount = 0;
+    let totalPendingCount = 0; // Track total pending irrespective of date range
 
     if (!orders) return {
         totalOrders: 0, pendingOrders: 0, deliveredOrders: 0, completedOrders: 0,
         revenueCash: 0, revenueOnline: 0, totalRevenue: 0, totalProfit: 0,
-        partialCash: 0, partialOnline: 0
+        partialCash: 0, partialOnline: 0, totalPendingCount: 0
     };
 
     orders.forEach(o => {
+      // Calculate Global Pending (Total Backlog)
+      if (o.status === OrderStatus.PENDING) {
+        totalPendingCount++;
+      }
+
       // Safety check for invalid dates
       const dateStr = o.date || new Date().toISOString();
       const creationDate = new Date(dateStr);
@@ -137,7 +142,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ orders, onNavigate }) => {
       totalRevenue: revenueCash + revenueOnline,
       totalProfit,
       partialCash, 
-      partialOnline
+      partialOnline,
+      totalPendingCount // Return total pending
     };
   }, [orders, dateRange, customStart, customEnd]);
 
@@ -156,24 +162,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ orders, onNavigate }) => {
     }
   }, [filteredStats, dateRange]);
 
-  const container = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: { staggerChildren: 0.1 }
-    }
-  };
-
-  const item = {
-    hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0 }
-  };
-
   return (
-    <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
+    <div className="space-y-6">
       
       {/* Date Filter Bar */}
-      <motion.div variants={item} className="bg-white p-2 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
+      <div className="bg-white p-2 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
         <div className="flex items-center gap-1 overflow-x-auto w-full md:w-auto p-1 no-scrollbar">
           {(['TODAY', 'YESTERDAY', 'WEEK', 'MONTH', 'YEAR'] as const).map(range => (
             <button
@@ -219,7 +212,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ orders, onNavigate }) => {
             />
           </div>
         )}
-      </motion.div>
+      </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -240,8 +233,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ orders, onNavigate }) => {
         <div onClick={() => onNavigate?.('PENDING_PAGE')} className="cursor-pointer transition-transform active:scale-95">
           <StatCard 
             title="Pending Orders"
-            value={filteredStats.pendingOrders.toString()}
-            subValue="Click to view all"
+            value={filteredStats.totalPendingCount.toString()}
+            subValue="Total active backlog"
             icon={Truck}
             color="amber"
           />
@@ -256,7 +249,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ orders, onNavigate }) => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <motion.div variants={item} className="bg-white rounded-2xl shadow-soft border border-gray-100 p-6">
+        <div className="bg-white rounded-2xl shadow-soft border border-gray-100 p-6">
           <h3 className="text-sm font-bold text-gray-900 mb-6 flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-gray-400" />
             {(dateRange === 'TODAY' || dateRange === 'YESTERDAY') ? 'Status Overview' : 'Revenue Breakdown'}
@@ -279,9 +272,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ orders, onNavigate }) => {
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </motion.div>
+        </div>
 
-        <motion.div variants={item} className="bg-white rounded-2xl shadow-soft border border-gray-100 p-6">
+        <div className="bg-white rounded-2xl shadow-soft border border-gray-100 p-6">
            <h3 className="text-sm font-bold text-gray-900 mb-6 flex items-center gap-2">
              <DollarSign className="w-4 h-4 text-gray-400" />
              Detailed Payment Summary
@@ -317,20 +310,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ orders, onNavigate }) => {
                  </div>
               )}
            </div>
-        </motion.div>
+        </div>
       </div>
-    </motion.div>
+    </div>
   );
 };
 
 const StatCard = ({ title, value, subValue, icon: Icon, color }: any) => {
-  const colors = {
-    emerald: "bg-emerald-500",
-    indigo: "bg-indigo-500",
-    amber: "bg-amber-500",
-    brand: "bg-brand-500",
-  };
-  
   const bgGradient = {
     emerald: "from-emerald-500 to-teal-500",
     indigo: "from-indigo-500 to-violet-500",
@@ -339,8 +325,7 @@ const StatCard = ({ title, value, subValue, icon: Icon, color }: any) => {
   }
 
   return (
-    <motion.div 
-      variants={{ hidden: { opacity: 0, scale: 0.9 }, show: { opacity: 1, scale: 1 } }}
+    <div 
       className={`relative overflow-hidden rounded-2xl p-5 text-white shadow-lg bg-gradient-to-br ${(bgGradient as any)[color]}`}
     >
       <div className="relative z-10">
@@ -357,6 +342,6 @@ const StatCard = ({ title, value, subValue, icon: Icon, color }: any) => {
       {/* Decorative Circles */}
       <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-white/10 rounded-full blur-2xl pointer-events-none" />
       <div className="absolute top-0 right-0 w-16 h-16 bg-white/5 rounded-full blur-xl pointer-events-none" />
-    </motion.div>
+    </div>
   );
 }

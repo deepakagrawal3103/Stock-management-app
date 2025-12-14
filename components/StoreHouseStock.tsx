@@ -4,7 +4,6 @@ import { Product, StoreStock } from '../types';
 import { v2, getProducts } from '../services/storage';
 import { Card, Button } from './ui/Common';
 import { Save, RefreshCw, MapPin } from 'lucide-react';
-import { motion } from 'framer-motion';
 
 interface StoreHouseStockProps {
   onStockUpdate?: () => void;
@@ -96,7 +95,7 @@ export const StoreHouseStock: React.FC<StoreHouseStockProps> = ({ onStockUpdate 
                 const total = stock.deepak + stock.dimple;
                 
                 return (
-                  <motion.tr key={p.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="hover:bg-gray-50/30">
+                  <tr key={p.id} className="hover:bg-gray-50/30">
                     <td className="px-6 py-4">
                       <p className="font-bold text-gray-900">{p.name}</p>
                       <p className="text-xs text-gray-400">{p.category}</p>
@@ -129,7 +128,7 @@ export const StoreHouseStock: React.FC<StoreHouseStockProps> = ({ onStockUpdate 
                          Save
                        </Button>
                     </td>
-                  </motion.tr>
+                  </tr>
                 );
               })}
             </tbody>

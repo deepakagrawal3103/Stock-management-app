@@ -12,19 +12,15 @@ import { AdvancedSearch } from './components/AdvancedSearch';
 import { PendingOrdersPage } from './components/PendingOrdersPage'; 
 
 import { LayoutDashboard, Package, ShoppingCart, ClipboardList, Printer, Search, Book } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 
 // Toast Notification
 const Toast = ({ message, type, onClose }: { message: string, type: 'success' | 'error', onClose: () => void }) => (
-  <motion.div 
-    initial={{ opacity: 0, y: 50, scale: 0.9 }}
-    animate={{ opacity: 1, y: 0, scale: 1 }}
-    exit={{ opacity: 0, y: 20, scale: 0.95 }}
+  <div 
     className={`fixed bottom-24 md:bottom-8 right-4 px-6 py-3 rounded-2xl shadow-2xl text-white z-[80] flex items-center gap-3 font-medium backdrop-blur-md ${type === 'success' ? 'bg-slate-900/90 shadow-slate-900/20' : 'bg-red-500/90 shadow-red-500/20'}`}
   >
     <span>{message}</span>
     <button onClick={onClose} className="hover:opacity-75">✕</button>
-  </motion.div>
+  </div>
 );
 
 const App: React.FC = () => {
@@ -199,54 +195,44 @@ const App: React.FC = () => {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="w-full">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={activeTab}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2 }}
-              >
-                {activeTab === 'DASHBOARD' && (
-                  <Dashboard 
-                    orders={orders} 
-                    onNavigate={(page) => setActiveTab(page as any)} 
-                  />
-                )}
-                
-                {activeTab === 'ORDERS' && (
-                  <OrderManager 
-                    orders={orders} 
-                    products={products} 
-                    onSaveOrder={handleSaveOrder} 
-                    onUpdateStatus={handleUpdateStatus}
-                    onDeleteOrder={handleDeleteOrder}
-                  />
-                )}
-                
-                {activeTab === 'PENDING_PAGE' && (
-                  <PendingOrdersPage orders={orders} onBack={() => setActiveTab('DASHBOARD')} />
-                )}
+            {activeTab === 'DASHBOARD' && (
+              <Dashboard 
+                orders={orders} 
+                onNavigate={(page) => setActiveTab(page as any)} 
+              />
+            )}
+            
+            {activeTab === 'ORDERS' && (
+              <OrderManager 
+                orders={orders} 
+                products={products} 
+                onSaveOrder={handleSaveOrder} 
+                onUpdateStatus={handleUpdateStatus}
+                onDeleteOrder={handleDeleteOrder}
+              />
+            )}
+            
+            {activeTab === 'PENDING_PAGE' && (
+              <PendingOrdersPage orders={orders} onBack={() => setActiveTab('DASHBOARD')} />
+            )}
 
-                {activeTab === 'PRODUCTS' && (
-                  <ProductManager 
-                    products={products} 
-                    onAddProduct={handleAddProduct}
-                    onUpdateProduct={handleUpdateProduct}
-                    onDeleteProduct={handleDeleteProduct}
-                    onRefresh={refreshProducts}
-                  />
-                )}
+            {activeTab === 'PRODUCTS' && (
+              <ProductManager 
+                products={products} 
+                onAddProduct={handleAddProduct}
+                onUpdateProduct={handleUpdateProduct}
+                onDeleteProduct={handleDeleteProduct}
+                onRefresh={refreshProducts}
+              />
+            )}
 
-                {activeTab === 'NEEDS' && (
-                  <RequirementView products={products} orders={orders} />
-                )}
+            {activeTab === 'NEEDS' && (
+              <RequirementView products={products} orders={orders} />
+            )}
 
-                {activeTab === 'RECORDS' && (
-                  <UnpaidWritingsManager orders={orders} products={products} />
-                )}
-              </motion.div>
-            </AnimatePresence>
+            {activeTab === 'RECORDS' && (
+              <UnpaidWritingsManager orders={orders} products={products} />
+            )}
         </div>
       </main>
 
@@ -261,7 +247,7 @@ const App: React.FC = () => {
             >
               <div className={`relative p-1.5 rounded-xl transition-all duration-300 ${activeTab === item.id ? 'bg-brand-50 text-brand-600' : 'text-slate-400 group-hover:text-slate-600'}`}>
                 {activeTab === item.id && (
-                   <motion.div layoutId="nav-bg" className="absolute inset-0 bg-brand-50 rounded-xl -z-10" transition={{ type: "spring", bounce: 0.2, duration: 0.6 }} />
+                   <div className="absolute inset-0 bg-brand-50 rounded-xl -z-10" />
                 )}
                 <item.icon className={`w-5 h-5 transition-transform ${activeTab === item.id ? 'scale-110' : ''}`} strokeWidth={activeTab === item.id ? 2.5 : 2} />
               </div>
@@ -283,11 +269,9 @@ const App: React.FC = () => {
 
       <VoiceAssistant />
 
-      <AnimatePresence>
-        {toast && (
-          <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
-        )}
-      </AnimatePresence>
+      {toast && (
+        <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
+      )}
     </div>
   );
 };

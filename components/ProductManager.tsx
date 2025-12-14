@@ -5,7 +5,6 @@ import { Button, Card, Input, Modal, Badge } from './ui/Common';
 import { ExpenseTracker } from './ExpenseTracker';
 import { StoreHouseStock } from './StoreHouseStock'; // Integrated Store Stock
 import { Plus, Edit2, Trash2, Search, Package, TrendingUp, Receipt, Archive, MapPin, BarChart3, ChevronDown, ChevronUp } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 
 interface ProductManagerProps {
   products: Product[];
@@ -93,23 +92,16 @@ export const ProductManager: React.FC<ProductManagerProps> = ({ products, onAddP
         </button>
       </div>
 
-      <AnimatePresence mode="wait">
         {activeTab === 'EXPENSES' ? (
-          <motion.div key="expenses" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+          <div>
             <ExpenseTracker />
-          </motion.div>
+          </div>
         ) : activeTab === 'STORE' ? (
-          <motion.div key="store" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+          <div>
             <StoreHouseStock onStockUpdate={onRefresh} />
-          </motion.div>
+          </div>
         ) : (
-          <motion.div 
-            key="inventory"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            className="space-y-4"
-          >
+          <div className="space-y-4">
             {/* Sticky Search & Actions Bar (Below Tabs) */}
             <div className="sticky top-[120px] z-20 bg-white/90 backdrop-blur-md p-3 rounded-2xl shadow-sm border border-slate-200/60 -mx-2 sm:mx-0 flex gap-2 transition-all">
                <div className="relative flex-1">
@@ -137,33 +129,26 @@ export const ProductManager: React.FC<ProductManagerProps> = ({ products, onAddP
             </div>
 
             {/* Collapsible Inventory Stats */}
-            <AnimatePresence>
-               {showStats && (
-                  <motion.div 
-                    initial={{ height: 0, opacity: 0 }} 
-                    animate={{ height: 'auto', opacity: 1 }} 
-                    exit={{ height: 0, opacity: 0 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="grid grid-cols-2 gap-3 mb-2">
-                      <Card className="p-4 border-l-4 border-blue-500 bg-gradient-to-br from-white to-blue-50">
-                        <div className="flex flex-col gap-1">
-                            <p className="text-[10px] text-blue-600 font-bold uppercase tracking-wider">Cost Value</p>
-                            <p className="text-xl font-bold text-gray-900">₹{inventoryValue.totalCostVal.toFixed(0)}</p>
-                        </div>
-                      </Card>
-                      <Card className="p-4 border-l-4 border-emerald-500 bg-gradient-to-br from-white to-emerald-50">
-                        <div className="flex flex-col gap-1">
-                            <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider">Sell Value</p>
-                            <p className="text-xl font-bold text-gray-900">₹{inventoryValue.totalSellVal.toFixed(0)}</p>
-                        </div>
-                      </Card>
+            {showStats && (
+              <div className="overflow-hidden">
+                <div className="grid grid-cols-2 gap-3 mb-2">
+                  <Card className="p-4 border-l-4 border-blue-500 bg-gradient-to-br from-white to-blue-50">
+                    <div className="flex flex-col gap-1">
+                        <p className="text-[10px] text-blue-600 font-bold uppercase tracking-wider">Cost Value</p>
+                        <p className="text-xl font-bold text-gray-900">₹{inventoryValue.totalCostVal.toFixed(0)}</p>
                     </div>
-                  </motion.div>
-               )}
-            </AnimatePresence>
+                  </Card>
+                  <Card className="p-4 border-l-4 border-emerald-500 bg-gradient-to-br from-white to-emerald-50">
+                    <div className="flex flex-col gap-1">
+                        <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider">Sell Value</p>
+                        <p className="text-xl font-bold text-gray-900">₹{inventoryValue.totalSellVal.toFixed(0)}</p>
+                    </div>
+                  </Card>
+                </div>
+              </div>
+            )}
 
-            <motion.div layout className="grid grid-cols-1 md:hidden gap-3">
+            <div className="grid grid-cols-1 md:hidden gap-3">
               {filteredProducts.map(product => {
                 const profit = product.sellingPrice - product.costPrice;
                 const isLowStock = product.quantity <= product.minStock;
@@ -206,7 +191,7 @@ export const ProductManager: React.FC<ProductManagerProps> = ({ products, onAddP
                   </Card>
                 );
               })}
-            </motion.div>
+            </div>
 
             {/* Desktop Table */}
             <Card className="hidden md:block overflow-hidden shadow-soft border-0">
@@ -275,9 +260,8 @@ export const ProductManager: React.FC<ProductManagerProps> = ({ products, onAddP
                 </div>
               </form>
             </Modal>
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
     </div>
   );
 };

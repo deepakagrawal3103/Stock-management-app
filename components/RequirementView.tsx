@@ -4,7 +4,6 @@ import { Product, Order, OrderStatus, StoreStock } from '../types';
 import { v2 } from '../services/storage';
 import { Card, Textarea, Badge } from './ui/Common';
 import { CheckCircle2, FileDigit, Info, Calendar, Truck, AlertTriangle } from 'lucide-react';
-import { motion } from 'framer-motion';
 
 interface RequirementViewProps {
   products: Product[];

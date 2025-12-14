@@ -4,7 +4,6 @@ import { Expense } from '../types';
 import { getExpenses, saveExpenses } from '../services/storage';
 import { Card, Button, Input } from './ui/Common';
 import { Plus, TrendingDown, Calendar, Receipt, Trash2, ArrowDownRight } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 
 export const ExpenseTracker: React.FC = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -141,13 +140,9 @@ export const ExpenseTracker: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  <AnimatePresence>
                     {expenses.map((expense) => (
-                      <motion.tr 
+                      <tr 
                         key={expense.id}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
                         className="hover:bg-gray-50/50 transition-colors"
                       >
                         <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
@@ -167,9 +162,8 @@ export const ExpenseTracker: React.FC = () => {
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </td>
-                      </motion.tr>
+                      </tr>
                     ))}
-                  </AnimatePresence>
                 </tbody>
               </table>
             </div>

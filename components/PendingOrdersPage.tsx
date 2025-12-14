@@ -3,7 +3,6 @@ import React, { useMemo } from 'react';
 import { Order, OrderStatus } from '../types';
 import { Card, Button } from './ui/Common';
 import { ArrowLeft, Truck, TrendingUp, DollarSign } from 'lucide-react';
-import { motion } from 'framer-motion';
 
 interface PendingOrdersPageProps {
   orders: Order[];

@@ -5,7 +5,6 @@ import { v2 } from '../services/storage';
 import { Button, Card, Input, Modal, Badge, Textarea } from './ui/Common';
 import { RoughWork } from './RoughWork'; 
 import { Plus, Trash2, CheckCircle, AlertTriangle, Book, PenTool, Search, X, Calendar, PieChart, TrendingUp, DollarSign, Package } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 
 interface UnpaidWritingsManagerProps {
   orders?: Order[];
@@ -37,11 +36,33 @@ export const UnpaidWritingsManager: React.FC<UnpaidWritingsManagerProps> = ({ or
     // 1. Total Unpaid (Global)
     // Sum of "Credit Book" Unpaid
     const creditBookUnpaid = writings.filter(w => w.status === 'UNPAID').reduce((sum, w) => sum + w.amount, 0);
+    
     // Sum of "Pending Balance" on Orders
+    // FIX: Only include orders that are COMPLETED/DELIVERED or Explicitly marked as Unpaid category.
+    // Exclude basic PENDING orders from "Debt" calculation.
+    const catMap = v2.getOrderCategoryMap();
+    const cats = v2.getCategories();
+
     const ordersUnpaid = orders.reduce((sum, o) => {
         const paid = o.paymentDetails?.totalPaid || 0;
-        return sum + Math.max(0, o.totalAmount - paid);
+        const remaining = Math.max(0, o.totalAmount - paid);
+        
+        if (remaining <= 0) return sum;
+
+        // Condition 1: Order is Completed or Delivered (Real Debt)
+        const isRealDebt = o.status === OrderStatus.COMPLETED || o.status === OrderStatus.DELIVERED;
+        
+        // Condition 2: Explicitly categorized as 'Unpaid' (even if Pending)
+        const mapping = catMap.find(m => m.orderId === o.id);
+        const catName = mapping ? cats.find(ct => ct.id === mapping.categoryId)?.name : '';
+        const isExplicitUnpaid = catName === 'Unpaid';
+
+        if (isRealDebt || isExplicitUnpaid) {
+            return sum + remaining;
+        }
+        return sum;
     }, 0);
+    
     const totalUnpaid = creditBookUnpaid + ordersUnpaid;
 
     // 2. Daily Stats (Revenue, Profit, Split)
@@ -51,13 +72,6 @@ export const UnpaidWritingsManager: React.FC<UnpaidWritingsManagerProps> = ({ or
     let dailyOnline = 0;
 
     orders.forEach(o => {
-        // Only consider completed/delivered or partially paid orders for revenue
-        // Simple logic: Check payment details
-        const paymentDate = o.completedAt ? new Date(o.completedAt) : new Date(o.date);
-        // Better: Use payment details directly if tracking time there, but simple: use completion or creation time check
-        // Assuming "Today's Revenue" implies money collected today. 
-        // We will approximate using order date for simplicity or check if completed today.
-        
         // Strict "Today" check on completion date for completed orders
         if (o.status === OrderStatus.COMPLETED && o.completedAt && new Date(o.completedAt) >= startOfDay) {
              const rev = o.paymentDetails?.totalPaid || 0;
@@ -77,30 +91,38 @@ export const UnpaidWritingsManager: React.FC<UnpaidWritingsManagerProps> = ({ or
         }
     });
 
-    // Add partial payments made today (V2 feature check)
-    const partials = v2.getPartialPayments();
-    partials.forEach(p => {
-       const d = new Date(p.createdAt);
-       if (d >= startOfDay) {
-         // Avoid double counting if the order was completed today and we already summed it above?
-         // This logic can get complex. For this view, let's keep it simple.
-         // If we want rigorous accounting, we'd sum ONLY partials + completion payments.
-         // Let's rely on the Dashboard logic which was solid, or re-implement simple aggregate here.
-       }
-    });
-
     // 3. Inventory Stats
     let stockValue = 0;
     products.forEach(p => {
         stockValue += (p.quantity * p.costPrice);
     });
 
-    // 4. Pending Production Cost
+    // 4. Pending Production Cost (Shortage Cost)
     let productionCost = 0;
-    orders.filter(o => o.status === OrderStatus.PENDING).forEach(o => {
-        o.items.forEach(i => {
-           productionCost += (i.costPriceSnapshot * i.quantity);
-        });
+    const pendingOrders = orders.filter(o => o.status === OrderStatus.PENDING);
+    
+    // Calculate demand map for stock items
+    const productDemand: Record<string, number> = {};
+    
+    pendingOrders.forEach(o => {
+       o.items.forEach(i => {
+          if (i.isCustom) {
+             // Custom items always incur production cost (labour/material not tracked in stock)
+             productionCost += (i.costPriceSnapshot * i.quantity);
+          } else {
+             productDemand[i.productId] = (productDemand[i.productId] || 0) + i.quantity;
+          }
+       });
+    });
+
+    // Calculate shortage cost
+    products.forEach(p => {
+       const demand = productDemand[p.id] || 0;
+       const stock = p.quantity;
+       const needed = Math.max(0, demand - stock);
+       if (needed > 0) {
+          productionCost += (needed * p.costPrice);
+       }
     });
 
     return {
@@ -188,13 +210,13 @@ export const UnpaidWritingsManager: React.FC<UnpaidWritingsManagerProps> = ({ or
         </button>
       </div>
 
-      <AnimatePresence mode="wait">
+      <div>
         {activeTab === 'ROUGH' ? (
-           <motion.div key="rough" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="h-[70vh]">
+           <div className="h-[70vh]">
              <RoughWork />
-           </motion.div>
+           </div>
         ) : activeTab === 'OVERVIEW' ? (
-            <motion.div key="overview" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="space-y-6">
+            <div className="space-y-6">
                 
                 {/* 1. Unpaid Summary */}
                 <Card className="p-0 border-l-4 border-l-red-500 overflow-hidden">
@@ -239,7 +261,7 @@ export const UnpaidWritingsManager: React.FC<UnpaidWritingsManagerProps> = ({ or
                 </div>
 
                 {/* 3. Inventory & Costing */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className={`grid gap-4 ${stats.productionCost > 0 ? 'grid-cols-2' : 'grid-cols-1'}`}>
                     <Card className="p-4 border-l-4 border-l-blue-500">
                        <div className="flex items-center gap-2 mb-2">
                           <Package className="w-4 h-4 text-blue-500" />
@@ -247,19 +269,22 @@ export const UnpaidWritingsManager: React.FC<UnpaidWritingsManagerProps> = ({ or
                        </div>
                        <p className="text-xl font-bold text-gray-900">₹{stats.stockValue.toFixed(0)}</p>
                     </Card>
-                    <Card className="p-4 border-l-4 border-l-orange-500">
-                       <div className="flex items-center gap-2 mb-2">
-                          <TrendingUp className="w-4 h-4 text-orange-500" />
-                          <p className="text-xs font-bold text-gray-500 uppercase">Cost for Prints</p>
-                       </div>
-                       <p className="text-xl font-bold text-gray-900">₹{stats.productionCost.toFixed(0)}</p>
-                       <p className="text-[10px] text-gray-400">To fulfill pending orders</p>
-                    </Card>
+                    
+                    {stats.productionCost > 0 && (
+                      <Card className="p-4 border-l-4 border-l-orange-500">
+                        <div className="flex items-center gap-2 mb-2">
+                            <TrendingUp className="w-4 h-4 text-orange-500" />
+                            <p className="text-xs font-bold text-gray-500 uppercase">Cost for Prints</p>
+                        </div>
+                        <p className="text-xl font-bold text-gray-900">₹{stats.productionCost.toFixed(0)}</p>
+                        <p className="text-[10px] text-gray-400">To fulfill pending orders</p>
+                      </Card>
+                    )}
                 </div>
 
-            </motion.div>
+            </div>
         ) : (
-          <motion.div key="credit" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
+          <div className="space-y-6">
             
             {/* Actions Bar with Sticky Search */}
             <div className="sticky top-32 z-10 bg-white/80 backdrop-blur-md p-2 rounded-2xl shadow-soft border border-gray-100 flex gap-2">
@@ -326,9 +351,9 @@ export const UnpaidWritingsManager: React.FC<UnpaidWritingsManagerProps> = ({ or
                 <Button onClick={handleSave} className="w-full mt-4">Save Record</Button>
               </div>
             </Modal>
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
+      </div>
     </div>
   );
 };

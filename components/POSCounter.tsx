@@ -3,7 +3,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Product, Order, OrderStatus, PaymentStatus, PaymentMethod, OrderItem } from '../types';
 import { Button, Input, Textarea } from './ui/Common';
 import { Search, ShoppingCart, Plus, Minus, Trash2, Save, X, Tag, ChevronUp, AlertCircle, CheckCircle2 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 
 interface POSCounterProps {
   products: Product[];
@@ -163,7 +162,7 @@ export const POSCounter: React.FC<POSCounterProps> = ({ products, initialOrder, 
   const cartTotal = calculateTotal();
 
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col h-[calc(100vh-140px)] relative">
+    <div className="flex flex-col h-[calc(100vh-140px)] relative">
       <div className="flex items-center justify-between mb-4 bg-white p-3 rounded-2xl shadow-soft border border-gray-100 shrink-0">
         <div className="flex items-center gap-3">
            <Button variant="ghost" size="sm" onClick={onCancel} icon={X} className="bg-gray-100 hover:bg-gray-200">Close</Button>
@@ -227,13 +226,11 @@ export const POSCounter: React.FC<POSCounterProps> = ({ products, initialOrder, 
                   const isExceeding = quantityInCart > product.quantity;
 
                   return (
-                    <motion.div 
+                    <div 
                       key={product.id} 
-                      whileHover={{ y: -2 }}
-                      whileTap={{ scale: 0.98 }}
                       onClick={() => addToCart(product)}
-                      className={`cursor-pointer bg-white rounded-xl p-3 flex flex-col justify-between h-36 relative border transition-all 
-                        ${quantityInCart > 0 ? 'border-brand-500 ring-1 ring-brand-500 shadow-lg shadow-brand-500/10' : 'border-gray-200 shadow-sm hover:shadow-md'}`}
+                      className={`cursor-pointer bg-white rounded-xl p-3 flex flex-col justify-between h-36 relative border transition-all hover:translate-y-[-2px] hover:shadow-md
+                        ${quantityInCart > 0 ? 'border-brand-500 ring-1 ring-brand-500 shadow-lg shadow-brand-500/10' : 'border-gray-200 shadow-sm'}`}
                     >
                       {quantityInCart > 0 && (
                         <div className={`absolute -top-2 -right-2 text-white text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full shadow-lg z-10 ${isExceeding ? 'bg-amber-500' : 'bg-brand-600'}`}>
@@ -255,7 +252,7 @@ export const POSCounter: React.FC<POSCounterProps> = ({ products, initialOrder, 
                             {product.quantity <= 0 ? '0 Stock' : `${product.quantity} left`}
                           </span>
                       </div>
-                    </motion.div>
+                    </div>
                   );
                 })}
              </div>
@@ -263,7 +260,7 @@ export const POSCounter: React.FC<POSCounterProps> = ({ products, initialOrder, 
         </div>
 
         {activeTab === 'PRODUCTS' && items.length > 0 && (
-          <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="md:hidden fixed bottom-20 left-4 right-4 z-30">
+          <div className="md:hidden fixed bottom-20 left-4 right-4 z-30 animate-[slideUp_0.3s_ease-out_forwards]">
             <button 
               onClick={() => setActiveTab('CART')}
               className="w-full bg-gray-900 text-white rounded-2xl shadow-xl shadow-gray-900/30 p-4 flex justify-between items-center"
@@ -276,7 +273,7 @@ export const POSCounter: React.FC<POSCounterProps> = ({ products, initialOrder, 
                 View Cart <ChevronUp className="w-4 h-4" />
               </div>
             </button>
-          </motion.div>
+          </div>
         )}
 
         {/* Cart */}
@@ -304,12 +301,12 @@ export const POSCounter: React.FC<POSCounterProps> = ({ products, initialOrder, 
                  <p className="text-sm font-medium">Cart is empty</p>
                </div>
             ) : (
-               <AnimatePresence>
+               <div>
                  {items.map((item, idx) => {
                    const isExceeding = !item.isCustom && item.maxStock !== undefined && item.quantity > item.maxStock;
                    
                    return (
-                     <motion.div key={idx} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, height: 0 }} className="border border-gray-100 rounded-xl p-3 relative bg-white shadow-sm">
+                     <div key={idx} className="border border-gray-100 rounded-xl p-3 relative bg-white shadow-sm mb-2">
                         <div className="flex justify-between items-start pr-8 mb-2">
                           {item.isCustom ? (
                             <input 
@@ -356,10 +353,10 @@ export const POSCounter: React.FC<POSCounterProps> = ({ products, initialOrder, 
                              </p>
                           </div>
                         )}
-                     </motion.div>
+                     </div>
                    );
                  })}
-               </AnimatePresence>
+               </div>
             )}
 
             <div className="pt-2">
@@ -398,6 +395,6 @@ export const POSCounter: React.FC<POSCounterProps> = ({ products, initialOrder, 
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 };

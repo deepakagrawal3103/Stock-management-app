@@ -3,7 +3,6 @@ import React, { useState, useMemo } from 'react';
 import { Order, Product } from '../types';
 import { Card, Input, Badge } from './ui/Common';
 import { Search, Package, ShoppingCart, FileText, X } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 
 interface AdvancedSearchProps {
   isOpen: boolean;
@@ -41,18 +40,13 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({ isOpen, onClose,
 
   return (
     <div className="fixed inset-0 z-[70] flex flex-col items-center pt-20 px-4">
-      <motion.div 
-        initial={{ opacity: 0 }} 
-        animate={{ opacity: 1 }} 
-        exit={{ opacity: 0 }}
+      <div 
         onClick={onClose}
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
       />
       
-      <motion.div 
-        initial={{ y: -20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl z-10 overflow-hidden flex flex-col max-h-[80vh]"
+      <div 
+        className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl z-10 overflow-hidden flex flex-col max-h-[80vh] animate-[fadeIn_0.2s]"
       >
         <div className="p-4 border-b border-gray-100 flex items-center gap-3">
            <Search className="w-5 h-5 text-gray-400" />
@@ -123,7 +117,7 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({ isOpen, onClose,
              </div>
            )}
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 };
