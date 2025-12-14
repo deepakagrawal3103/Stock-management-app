@@ -5,8 +5,8 @@ import * as Storage from './services/storage';
 import { Dashboard } from './components/Dashboard';
 import { ProductManager } from './components/ProductManager';
 import { OrderManager } from './components/OrderManager';
-import { RequirementView } from './components/RequirementView'; // Now acts as "Needs Hub"
-import { UnpaidWritingsManager } from './components/UnpaidWritingsManager'; // Now acts as "Records Center"
+import { RequirementView } from './components/RequirementView'; 
+import { UnpaidWritingsManager } from './components/UnpaidWritingsManager'; 
 import { VoiceAssistant } from './components/VoiceAssistant';
 import { AdvancedSearch } from './components/AdvancedSearch';
 import { PendingOrdersPage } from './components/PendingOrdersPage'; 
@@ -20,7 +20,7 @@ const Toast = ({ message, type, onClose }: { message: string, type: 'success' | 
     initial={{ opacity: 0, y: 50, scale: 0.9 }}
     animate={{ opacity: 1, y: 0, scale: 1 }}
     exit={{ opacity: 0, y: 20, scale: 0.95 }}
-    className={`fixed bottom-24 md:bottom-8 right-4 px-6 py-3 rounded-2xl shadow-xl shadow-gray-200 text-white z-[60] flex items-center gap-3 font-medium ${type === 'success' ? 'bg-gray-900' : 'bg-red-500'}`}
+    className={`fixed bottom-24 md:bottom-8 right-4 px-6 py-3 rounded-2xl shadow-2xl text-white z-[80] flex items-center gap-3 font-medium backdrop-blur-md ${type === 'success' ? 'bg-slate-900/90 shadow-slate-900/20' : 'bg-red-500/90 shadow-red-500/20'}`}
   >
     <span>{message}</span>
     <button onClick={onClose} className="hover:opacity-75">✕</button>
@@ -31,7 +31,6 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'PRODUCTS' | 'ORDERS' | 'NEEDS' | 'RECORDS' | 'PENDING_PAGE'>('DASHBOARD');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   
-  // Load data immediately on initialization to prevent blank screens
   const [products, setProducts] = useState<Product[]>(() => Storage.getProducts() || []);
   const [orders, setOrders] = useState<Order[]>(() => Storage.getOrders() || []);
   
@@ -40,6 +39,10 @@ const App: React.FC = () => {
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
+  };
+
+  const refreshProducts = () => {
+    setProducts(Storage.getProducts());
   };
 
   const handleAddProduct = (product: Product) => {
@@ -142,45 +145,46 @@ const App: React.FC = () => {
   const navItems = [
     { id: 'DASHBOARD', icon: LayoutDashboard, label: 'Home' },
     { id: 'ORDERS', icon: ShoppingCart, label: 'Orders' },
-    { id: 'PRODUCTS', icon: Package, label: 'Products' },
+    { id: 'PRODUCTS', icon: Package, label: 'Stock' },
     { id: 'NEEDS', icon: ClipboardList, label: 'Needs' },
     { id: 'RECORDS', icon: Book, label: 'Records' },
   ] as const;
 
   return (
-    <div className="min-h-screen bg-gray-50/50 pb-28 md:pb-10 font-sans text-gray-900 selection:bg-brand-100 selection:text-brand-900">
+    <div className="min-h-screen bg-slate-50/50 pb-28 md:pb-10 font-sans text-slate-900 selection:bg-brand-100 selection:text-brand-900">
+      
       {/* Header (Desktop & Mobile) */}
-      <header className="bg-white/80 backdrop-blur-xl border-b border-gray-200 sticky top-0 z-40 transition-all">
+      <header className="bg-white/80 backdrop-blur-xl border-b border-slate-200 sticky top-0 z-40 transition-all supports-[backdrop-filter]:bg-white/60">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
             <div className="flex items-center gap-3">
-              <div className="bg-gradient-to-tr from-brand-600 to-indigo-600 p-2.5 rounded-xl shadow-lg shadow-brand-500/20">
+              <div className="bg-gradient-to-tr from-brand-500 to-indigo-600 p-2 rounded-xl shadow-lg shadow-brand-500/20 ring-1 ring-white/50">
                  <Printer className="w-5 h-5 text-white" />
               </div>
-              <div>
-                <h1 className="text-lg font-bold text-gray-900 leading-none tracking-tight">Print Bazar</h1>
-                <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Manager</p>
+              <div className="flex flex-col">
+                <h1 className="text-lg font-bold text-slate-900 leading-none tracking-tight">Print Bazar</h1>
+                <span className="text-[10px] font-bold text-brand-600 uppercase tracking-widest mt-0.5">Manager</span>
               </div>
             </div>
             
             <div className="flex items-center gap-2">
                 <button 
                   onClick={() => setIsSearchOpen(true)}
-                  className="p-2.5 text-gray-500 hover:text-brand-600 hover:bg-gray-100 rounded-xl transition-colors md:mr-4"
+                  className="p-2.5 text-slate-500 hover:text-brand-600 hover:bg-slate-100 rounded-xl transition-colors md:mr-4 active:scale-95"
                 >
                   <Search className="w-5 h-5" />
                 </button>
                 
                 {/* Desktop Navigation */}
-                <nav className="hidden md:flex items-center gap-1 bg-gray-100/50 p-1 rounded-xl">
+                <nav className="hidden md:flex items-center gap-1 bg-slate-100/50 p-1.5 rounded-2xl border border-slate-200/50">
                   {navItems.map(item => (
                     <button 
                       key={item.id}
                       onClick={() => setActiveTab(item.id as any)} 
-                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-200 ${
                         activeTab === item.id 
-                          ? 'bg-white text-brand-600 shadow-sm' 
-                          : 'text-gray-500 hover:text-gray-900 hover:bg-white/50'
+                          ? 'bg-white text-brand-600 shadow-sm ring-1 ring-slate-200' 
+                          : 'text-slate-500 hover:text-slate-900 hover:bg-white/50'
                       }`}
                     >
                       {item.label}
@@ -195,63 +199,73 @@ const App: React.FC = () => {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="w-full">
-            {activeTab === 'DASHBOARD' && (
-              <Dashboard 
-                orders={orders} 
-                onNavigate={(page) => setActiveTab(page as any)} 
-              />
-            )}
-            
-            {activeTab === 'ORDERS' && (
-              <OrderManager 
-                orders={orders} 
-                products={products} 
-                onSaveOrder={handleSaveOrder} 
-                onUpdateStatus={handleUpdateStatus}
-                onDeleteOrder={handleDeleteOrder}
-              />
-            )}
-            
-            {activeTab === 'PENDING_PAGE' && (
-              <PendingOrdersPage orders={orders} onBack={() => setActiveTab('DASHBOARD')} />
-            )}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                {activeTab === 'DASHBOARD' && (
+                  <Dashboard 
+                    orders={orders} 
+                    onNavigate={(page) => setActiveTab(page as any)} 
+                  />
+                )}
+                
+                {activeTab === 'ORDERS' && (
+                  <OrderManager 
+                    orders={orders} 
+                    products={products} 
+                    onSaveOrder={handleSaveOrder} 
+                    onUpdateStatus={handleUpdateStatus}
+                    onDeleteOrder={handleDeleteOrder}
+                  />
+                )}
+                
+                {activeTab === 'PENDING_PAGE' && (
+                  <PendingOrdersPage orders={orders} onBack={() => setActiveTab('DASHBOARD')} />
+                )}
 
-            {activeTab === 'PRODUCTS' && (
-              <ProductManager 
-                products={products} 
-                onAddProduct={handleAddProduct}
-                onUpdateProduct={handleUpdateProduct}
-                onDeleteProduct={handleDeleteProduct}
-              />
-            )}
+                {activeTab === 'PRODUCTS' && (
+                  <ProductManager 
+                    products={products} 
+                    onAddProduct={handleAddProduct}
+                    onUpdateProduct={handleUpdateProduct}
+                    onDeleteProduct={handleDeleteProduct}
+                    onRefresh={refreshProducts}
+                  />
+                )}
 
-            {activeTab === 'NEEDS' && (
-              <RequirementView products={products} orders={orders} />
-            )}
+                {activeTab === 'NEEDS' && (
+                  <RequirementView products={products} orders={orders} />
+                )}
 
-            {activeTab === 'RECORDS' && (
-               <UnpaidWritingsManager />
-            )}
+                {activeTab === 'RECORDS' && (
+                  <UnpaidWritingsManager orders={orders} products={products} />
+                )}
+              </motion.div>
+            </AnimatePresence>
         </div>
       </main>
 
-      {/* Mobile Footer Navigation */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-gray-200 z-50 pb-safe shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.05)] overflow-x-auto no-scrollbar">
-        <div className="flex items-center h-16 px-2 min-w-max mx-auto max-w-lg justify-between w-full">
+      {/* Mobile Footer Navigation - Glassmorphism */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-slate-200 z-50 pb-safe shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)]">
+        <div className="flex items-center h-[72px] px-4 justify-between w-full max-w-lg mx-auto">
           {navItems.map(item => (
             <button 
               key={item.id}
               onClick={() => setActiveTab(item.id as any)} 
-              className="relative flex flex-col items-center justify-center flex-1 h-full space-y-1 group"
+              className="relative flex flex-col items-center justify-center flex-1 h-full space-y-1.5 group active:scale-95 transition-transform"
             >
-              {activeTab === item.id && (
-                <motion.div 
-                  layoutId="navIndicator"
-                  className="absolute top-0 w-8 h-1 bg-brand-600 rounded-b-full shadow-[0_0_10px_rgba(2,132,199,0.5)]"
-                />
-              )}
-              <item.icon className={`w-5 h-5 transition-colors duration-200 ${activeTab === item.id ? 'text-brand-600' : 'text-gray-400 group-hover:text-gray-600'}`} />
-              <span className={`text-[10px] font-medium transition-colors duration-200 ${activeTab === item.id ? 'text-brand-600' : 'text-gray-400 group-hover:text-gray-600'}`}>
+              <div className={`relative p-1.5 rounded-xl transition-all duration-300 ${activeTab === item.id ? 'bg-brand-50 text-brand-600' : 'text-slate-400 group-hover:text-slate-600'}`}>
+                {activeTab === item.id && (
+                   <motion.div layoutId="nav-bg" className="absolute inset-0 bg-brand-50 rounded-xl -z-10" transition={{ type: "spring", bounce: 0.2, duration: 0.6 }} />
+                )}
+                <item.icon className={`w-5 h-5 transition-transform ${activeTab === item.id ? 'scale-110' : ''}`} strokeWidth={activeTab === item.id ? 2.5 : 2} />
+              </div>
+              <span className={`text-[10px] font-bold tracking-tight transition-colors duration-200 ${activeTab === item.id ? 'text-brand-600' : 'text-slate-400'}`}>
                 {item.label}
               </span>
             </button>

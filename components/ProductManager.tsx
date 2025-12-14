@@ -4,7 +4,7 @@ import { Product } from '../types';
 import { Button, Card, Input, Modal, Badge } from './ui/Common';
 import { ExpenseTracker } from './ExpenseTracker';
 import { StoreHouseStock } from './StoreHouseStock'; // Integrated Store Stock
-import { Plus, Edit2, Trash2, Search, Package, TrendingUp, Receipt, Archive, MapPin } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, Package, TrendingUp, Receipt, Archive, MapPin, BarChart3, ChevronDown, ChevronUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface ProductManagerProps {
@@ -12,10 +12,12 @@ interface ProductManagerProps {
   onAddProduct: (product: Product) => void;
   onUpdateProduct: (product: Product) => void;
   onDeleteProduct: (id: string) => void;
+  onRefresh?: () => void;
 }
 
-export const ProductManager: React.FC<ProductManagerProps> = ({ products, onAddProduct, onUpdateProduct, onDeleteProduct }) => {
+export const ProductManager: React.FC<ProductManagerProps> = ({ products, onAddProduct, onUpdateProduct, onDeleteProduct, onRefresh }) => {
   const [activeTab, setActiveTab] = useState<'INVENTORY' | 'STORE' | 'EXPENSES'>('INVENTORY');
+  const [showStats, setShowStats] = useState(false);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -62,9 +64,9 @@ export const ProductManager: React.FC<ProductManagerProps> = ({ products, onAddP
   }, [products]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Sub-Navigation Tabs */}
-      <div className="flex p-1 bg-white border border-gray-200 rounded-xl w-full max-w-lg mx-auto shadow-sm">
+      <div className="flex p-1 bg-white border border-gray-200 rounded-xl w-full max-w-lg mx-auto shadow-sm sticky top-16 z-30 mb-4">
         <button
           onClick={() => setActiveTab('INVENTORY')}
           className={`flex-1 py-2 rounded-lg text-xs md:text-sm font-bold flex items-center justify-center gap-2 transition-all ${
@@ -98,7 +100,7 @@ export const ProductManager: React.FC<ProductManagerProps> = ({ products, onAddP
           </motion.div>
         ) : activeTab === 'STORE' ? (
           <motion.div key="store" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-            <StoreHouseStock />
+            <StoreHouseStock onStockUpdate={onRefresh} />
           </motion.div>
         ) : (
           <motion.div 
@@ -106,49 +108,60 @@ export const ProductManager: React.FC<ProductManagerProps> = ({ products, onAddP
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 20 }}
-            className="space-y-6"
+            className="space-y-4"
           >
-            {/* Inventory Valuation Summary */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Card className="p-5 border-l-4 border-blue-500 bg-gradient-to-br from-white to-blue-50">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-white shadow-sm border border-blue-100 text-blue-600 rounded-xl">
-                    <Package className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-blue-600 font-bold uppercase tracking-wider">Stock Cost Value</p>
-                    <p className="text-2xl font-bold text-gray-900">₹{inventoryValue.totalCostVal.toFixed(0)}</p>
-                  </div>
-                </div>
-              </Card>
-              <Card className="p-5 border-l-4 border-emerald-500 bg-gradient-to-br from-white to-emerald-50">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-white shadow-sm border border-emerald-100 text-emerald-600 rounded-xl">
-                    <TrendingUp className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-emerald-600 font-bold uppercase tracking-wider">Stock Selling Value</p>
-                    <p className="text-2xl font-bold text-gray-900">₹{inventoryValue.totalSellVal.toFixed(0)}</p>
-                  </div>
-                </div>
-              </Card>
+            {/* Sticky Search & Actions Bar (Below Tabs) */}
+            <div className="sticky top-[120px] z-20 bg-white/90 backdrop-blur-md p-3 rounded-2xl shadow-sm border border-slate-200/60 -mx-2 sm:mx-0 flex gap-2 transition-all">
+               <div className="relative flex-1">
+                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                 <input
+                   type="text"
+                   className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 transition-all outline-none"
+                   placeholder="Search..."
+                   value={searchTerm}
+                   onChange={(e) => setSearchTerm(e.target.value)}
+                 />
+               </div>
+               
+               <Button 
+                  variant="secondary" 
+                  onClick={() => setShowStats(!showStats)}
+                  className={`px-3 shrink-0 ${showStats ? 'bg-slate-100 text-slate-800' : 'text-slate-500'}`}
+               >
+                 {showStats ? <ChevronUp className="w-4 h-4" /> : <BarChart3 className="w-4 h-4" />}
+               </Button>
+
+               <Button onClick={() => handleOpenModal()} icon={Plus} className="shrink-0 shadow-lg shadow-brand-500/20">
+                 Add
+               </Button>
             </div>
 
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-white p-2 rounded-2xl shadow-soft border border-gray-100 sticky top-20 z-20">
-              <div className="relative w-full sm:w-72">
-                <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-                <input
-                  type="text"
-                  className="block w-full pl-9 pr-3 py-2 border-0 bg-gray-50 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 transition-all placeholder-gray-400"
-                  placeholder="Search stock..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-              <Button onClick={() => handleOpenModal()} icon={Plus} className="w-full sm:w-auto shadow-lg shadow-brand-500/30">
-                Add Product
-              </Button>
-            </div>
+            {/* Collapsible Inventory Stats */}
+            <AnimatePresence>
+               {showStats && (
+                  <motion.div 
+                    initial={{ height: 0, opacity: 0 }} 
+                    animate={{ height: 'auto', opacity: 1 }} 
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="grid grid-cols-2 gap-3 mb-2">
+                      <Card className="p-4 border-l-4 border-blue-500 bg-gradient-to-br from-white to-blue-50">
+                        <div className="flex flex-col gap-1">
+                            <p className="text-[10px] text-blue-600 font-bold uppercase tracking-wider">Cost Value</p>
+                            <p className="text-xl font-bold text-gray-900">₹{inventoryValue.totalCostVal.toFixed(0)}</p>
+                        </div>
+                      </Card>
+                      <Card className="p-4 border-l-4 border-emerald-500 bg-gradient-to-br from-white to-emerald-50">
+                        <div className="flex flex-col gap-1">
+                            <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider">Sell Value</p>
+                            <p className="text-xl font-bold text-gray-900">₹{inventoryValue.totalSellVal.toFixed(0)}</p>
+                        </div>
+                      </Card>
+                    </div>
+                  </motion.div>
+               )}
+            </AnimatePresence>
 
             <motion.div layout className="grid grid-cols-1 md:hidden gap-3">
               {filteredProducts.map(product => {
@@ -157,13 +170,13 @@ export const ProductManager: React.FC<ProductManagerProps> = ({ products, onAddP
                 const stockSellVal = product.quantity * product.sellingPrice;
 
                 return (
-                  <Card key={product.id} className={`p-4 ${isLowStock ? 'ring-2 ring-red-100 bg-red-50/30' : ''}`}>
+                  <Card key={product.id} className={`p-4 ${isLowStock ? 'ring-2 ring-red-100 bg-red-50/30' : ''}`} onClick={() => handleOpenModal(product)}>
                     <div className="flex justify-between items-start mb-3">
                       <div>
                           <h3 className="font-bold text-gray-900 text-base">{product.name}</h3>
                           <div className="flex items-center gap-2 mt-1">
                             <Badge>{product.category}</Badge>
-                            {isLowStock && <Badge color="red">Low Stock</Badge>}
+                            {isLowStock && <Badge color="red">Low</Badge>}
                           </div>
                       </div>
                       <div className="text-right">
@@ -174,23 +187,21 @@ export const ProductManager: React.FC<ProductManagerProps> = ({ products, onAddP
                     
                     <div className="grid grid-cols-2 gap-3 text-sm py-3 border-t border-b border-gray-50 my-2">
                         <div>
-                          <span className="text-xs text-gray-400 block mb-0.5">Price (Cost/Sell)</span>
+                          <span className="text-xs text-gray-400 block mb-0.5">Price (C/S)</span>
                           <span className="font-mono font-medium">₹{product.costPrice} / ₹{product.sellingPrice}</span>
                         </div>
                         <div className="text-right">
-                          <span className="text-xs text-gray-400 block mb-0.5">Profit/Unit</span>
-                          <span className="font-medium text-emerald-600">+₹{profit.toFixed(2)}</span>
+                          <span className="text-xs text-gray-400 block mb-0.5">Profit</span>
+                          <span className="font-medium text-emerald-600">+₹{profit.toFixed(0)}</span>
                         </div>
                     </div>
                     
-                    <div className="flex justify-between items-center mt-3 pt-1">
-                      <div className="text-xs text-gray-500">
-                        Val: <span className="font-medium text-gray-900">₹{stockSellVal.toFixed(0)}</span>
-                      </div>
-                      <div className="flex gap-2">
-                          <Button size="sm" variant="ghost" onClick={() => handleOpenModal(product)} icon={Edit2} className="h-8 w-8 p-0" />
-                          <Button size="sm" variant="ghost" className="text-red-600 hover:bg-red-50 h-8 w-8 p-0" onClick={() => onDeleteProduct(product.id)} icon={Trash2} />
-                      </div>
+                    <div className="flex justify-between items-center mt-2">
+                       <span className="text-xs text-gray-400">Total Val: ₹{stockSellVal.toFixed(0)}</span>
+                       <div className="flex gap-3">
+                          <button onClick={(e) => { e.stopPropagation(); handleOpenModal(product); }} className="text-brand-600 text-xs font-bold px-2 py-1 bg-brand-50 rounded">EDIT</button>
+                          <button onClick={(e) => { e.stopPropagation(); onDeleteProduct(product.id); }} className="text-red-600 text-xs font-bold px-2 py-1 bg-red-50 rounded">DEL</button>
+                       </div>
                     </div>
                   </Card>
                 );

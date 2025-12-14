@@ -6,7 +6,11 @@ import { Card, Button } from './ui/Common';
 import { Save, RefreshCw, MapPin } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-export const StoreHouseStock: React.FC = () => {
+interface StoreHouseStockProps {
+  onStockUpdate?: () => void;
+}
+
+export const StoreHouseStock: React.FC<StoreHouseStockProps> = ({ onStockUpdate }) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [stocks, setStocks] = useState<StoreStock[]>([]);
   const [editedStocks, setEditedStocks] = useState<Record<string, { deepak: number, dimple: number }>>({});
@@ -54,6 +58,9 @@ export const StoreHouseStock: React.FC = () => {
       v2.updateStoreStock(productId, data.deepak, data.dimple);
       // Reload to reflect total update in product list if needed
       loadData();
+      if (onStockUpdate) {
+        onStockUpdate();
+      }
       alert('Stock updated successfully!');
     }
   };

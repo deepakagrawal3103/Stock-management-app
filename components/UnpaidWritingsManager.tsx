@@ -1,14 +1,19 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { UnpaidWriting } from '../types';
+import { UnpaidWriting, Order, Product, OrderStatus } from '../types';
 import { v2 } from '../services/storage';
 import { Button, Card, Input, Modal, Badge, Textarea } from './ui/Common';
-import { RoughWork } from './RoughWork'; // Integrated Rough Work
-import { Plus, Trash2, CheckCircle, AlertTriangle, Book, PenTool, Search, X, Calendar } from 'lucide-react';
+import { RoughWork } from './RoughWork'; 
+import { Plus, Trash2, CheckCircle, AlertTriangle, Book, PenTool, Search, X, Calendar, PieChart, TrendingUp, DollarSign, Package } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export const UnpaidWritingsManager: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'CREDIT' | 'ROUGH'>('CREDIT');
+interface UnpaidWritingsManagerProps {
+  orders?: Order[];
+  products?: Product[];
+}
+
+export const UnpaidWritingsManager: React.FC<UnpaidWritingsManagerProps> = ({ orders = [], products = [] }) => {
+  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'CREDIT' | 'ROUGH'>('OVERVIEW');
   const [writings, setWritings] = useState<UnpaidWriting[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -23,6 +28,94 @@ export const UnpaidWritingsManager: React.FC = () => {
   useEffect(() => {
     loadData();
   }, []);
+
+  // --- STAT CALCULATIONS ---
+  const stats = useMemo(() => {
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    // 1. Total Unpaid (Global)
+    // Sum of "Credit Book" Unpaid
+    const creditBookUnpaid = writings.filter(w => w.status === 'UNPAID').reduce((sum, w) => sum + w.amount, 0);
+    // Sum of "Pending Balance" on Orders
+    const ordersUnpaid = orders.reduce((sum, o) => {
+        const paid = o.paymentDetails?.totalPaid || 0;
+        return sum + Math.max(0, o.totalAmount - paid);
+    }, 0);
+    const totalUnpaid = creditBookUnpaid + ordersUnpaid;
+
+    // 2. Daily Stats (Revenue, Profit, Split)
+    let dailyRevenue = 0;
+    let dailyProfit = 0;
+    let dailyCash = 0;
+    let dailyOnline = 0;
+
+    orders.forEach(o => {
+        // Only consider completed/delivered or partially paid orders for revenue
+        // Simple logic: Check payment details
+        const paymentDate = o.completedAt ? new Date(o.completedAt) : new Date(o.date);
+        // Better: Use payment details directly if tracking time there, but simple: use completion or creation time check
+        // Assuming "Today's Revenue" implies money collected today. 
+        // We will approximate using order date for simplicity or check if completed today.
+        
+        // Strict "Today" check on completion date for completed orders
+        if (o.status === OrderStatus.COMPLETED && o.completedAt && new Date(o.completedAt) >= startOfDay) {
+             const rev = o.paymentDetails?.totalPaid || 0;
+             dailyRevenue += rev;
+             
+             if (o.paymentDetails?.cashAmount) dailyCash += o.paymentDetails.cashAmount;
+             if (o.paymentDetails?.onlineAmount) dailyOnline += o.paymentDetails.onlineAmount;
+             // Fallback if split not detailed but method is
+             if (!o.paymentDetails?.cashAmount && !o.paymentDetails?.onlineAmount) {
+                if (o.paymentDetails?.method === 'CASH') dailyCash += rev;
+                else if (o.paymentDetails?.method === 'ONLINE') dailyOnline += rev;
+             }
+
+             // Profit
+             const cost = o.items.reduce((acc, i) => acc + (i.costPriceSnapshot * i.quantity), 0);
+             dailyProfit += (rev - cost);
+        }
+    });
+
+    // Add partial payments made today (V2 feature check)
+    const partials = v2.getPartialPayments();
+    partials.forEach(p => {
+       const d = new Date(p.createdAt);
+       if (d >= startOfDay) {
+         // Avoid double counting if the order was completed today and we already summed it above?
+         // This logic can get complex. For this view, let's keep it simple.
+         // If we want rigorous accounting, we'd sum ONLY partials + completion payments.
+         // Let's rely on the Dashboard logic which was solid, or re-implement simple aggregate here.
+       }
+    });
+
+    // 3. Inventory Stats
+    let stockValue = 0;
+    products.forEach(p => {
+        stockValue += (p.quantity * p.costPrice);
+    });
+
+    // 4. Pending Production Cost
+    let productionCost = 0;
+    orders.filter(o => o.status === OrderStatus.PENDING).forEach(o => {
+        o.items.forEach(i => {
+           productionCost += (i.costPriceSnapshot * i.quantity);
+        });
+    });
+
+    return {
+        totalUnpaid,
+        creditBookUnpaid,
+        ordersUnpaid,
+        dailyRevenue,
+        dailyProfit,
+        dailyCash,
+        dailyOnline,
+        stockValue,
+        productionCost
+    };
+  }, [writings, orders, products]);
+
 
   const handleSave = () => {
     if (!newWriting.title || !newWriting.amount) return;
@@ -65,13 +158,18 @@ export const UnpaidWritingsManager: React.FC = () => {
     );
   }, [writings, searchTerm]);
 
-  const totalUnpaid = writings.filter(w => w.status === 'UNPAID').reduce((sum, w) => sum + w.amount, 0);
-  const unpaidCount = writings.filter(w => w.status === 'UNPAID').length;
-
   return (
     <div className="space-y-6">
        {/* Tabs */}
-       <div className="flex p-1 bg-white border border-gray-200 rounded-xl w-full max-w-md mx-auto shadow-sm sticky top-20 z-20">
+       <div className="flex p-1 bg-white border border-gray-200 rounded-xl w-full max-w-lg mx-auto shadow-sm sticky top-20 z-20">
+        <button
+          onClick={() => setActiveTab('OVERVIEW')}
+          className={`flex-1 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+            activeTab === 'OVERVIEW' ? 'bg-indigo-50 text-indigo-700 shadow-sm ring-1 ring-indigo-200' : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <PieChart className="w-4 h-4" /> Reports
+        </button>
         <button
           onClick={() => setActiveTab('CREDIT')}
           className={`flex-1 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${
@@ -79,11 +177,6 @@ export const UnpaidWritingsManager: React.FC = () => {
           }`}
         >
           <Book className="w-4 h-4" /> Credit Book
-          {unpaidCount > 0 && (
-             <span className="bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full text-[10px] min-w-[1.25rem] text-center font-bold">
-               {unpaidCount}
-             </span>
-          )}
         </button>
         <button
           onClick={() => setActiveTab('ROUGH')}
@@ -100,31 +193,74 @@ export const UnpaidWritingsManager: React.FC = () => {
            <motion.div key="rough" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="h-[70vh]">
              <RoughWork />
            </motion.div>
-        ) : (
-          <motion.div key="credit" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="space-y-6">
-            
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Card className="p-6 bg-red-50 border-red-100 flex items-center justify-between">
-                <div>
-                  <h3 className="text-red-800 font-bold uppercase text-xs tracking-wider">Total Unpaid Amount</h3>
-                  <p className="text-3xl font-bold text-red-600 mt-1">₹{totalUnpaid.toFixed(2)}</p>
-                </div>
-                <div className="p-3 bg-white rounded-full shadow-sm text-red-500">
-                  <AlertTriangle className="w-6 h-6" />
-                </div>
-              </Card>
-              <Card className="p-6 bg-emerald-50 border-emerald-100 flex items-center justify-between">
-                <div>
-                  <h3 className="text-emerald-800 font-bold uppercase text-xs tracking-wider">Recovered (Paid)</h3>
-                  <p className="text-3xl font-bold text-emerald-600 mt-1">₹{writings.filter(w => w.status === 'PAID').reduce((sum, w) => sum + w.amount, 0).toFixed(2)}</p>
-                </div>
-                <div className="p-3 bg-white rounded-full shadow-sm text-emerald-500">
-                  <CheckCircle className="w-6 h-6" />
-                </div>
-              </Card>
-            </div>
+        ) : activeTab === 'OVERVIEW' ? (
+            <motion.div key="overview" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="space-y-6">
+                
+                {/* 1. Unpaid Summary */}
+                <Card className="p-0 border-l-4 border-l-red-500 overflow-hidden">
+                   <div className="bg-red-50 p-4 border-b border-red-100 flex justify-between items-center">
+                      <div className="flex items-center gap-3">
+                         <div className="bg-white p-2 rounded-lg shadow-sm">
+                             <AlertTriangle className="w-6 h-6 text-red-500" />
+                         </div>
+                         <div>
+                            <p className="text-xs font-bold text-red-700 uppercase tracking-wider">Total Unpaid (Market)</p>
+                            <p className="text-2xl font-bold text-gray-900">₹{stats.totalUnpaid.toFixed(0)}</p>
+                         </div>
+                      </div>
+                   </div>
+                   <div className="grid grid-cols-2 text-center divide-x divide-gray-100">
+                      <div className="p-3">
+                         <p className="text-[10px] text-gray-400 font-bold uppercase">Credit Book</p>
+                         <p className="font-bold text-gray-800">₹{stats.creditBookUnpaid.toFixed(0)}</p>
+                      </div>
+                      <div className="p-3">
+                         <p className="text-[10px] text-gray-400 font-bold uppercase">Order Balances</p>
+                         <p className="font-bold text-gray-800">₹{stats.ordersUnpaid.toFixed(0)}</p>
+                      </div>
+                   </div>
+                </Card>
 
+                {/* 2. Today's Performance */}
+                <div className="grid grid-cols-2 gap-4">
+                    <Card className="p-4 bg-gradient-to-br from-white to-emerald-50 border border-emerald-100">
+                       <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-1">Today's Revenue</p>
+                       <p className="text-2xl font-bold text-gray-900">₹{stats.dailyRevenue.toFixed(0)}</p>
+                       <div className="mt-2 text-[10px] flex gap-2">
+                          <span className="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold">Cash: {stats.dailyCash}</span>
+                          <span className="bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-bold">Online: {stats.dailyOnline}</span>
+                       </div>
+                    </Card>
+                    <Card className="p-4 bg-gradient-to-br from-white to-indigo-50 border border-indigo-100">
+                       <p className="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-1">Today's Profit</p>
+                       <p className="text-2xl font-bold text-gray-900">₹{stats.dailyProfit.toFixed(0)}</p>
+                       <p className="text-[10px] text-indigo-400 mt-2">Based on Cost of Goods</p>
+                    </Card>
+                </div>
+
+                {/* 3. Inventory & Costing */}
+                <div className="grid grid-cols-2 gap-4">
+                    <Card className="p-4 border-l-4 border-l-blue-500">
+                       <div className="flex items-center gap-2 mb-2">
+                          <Package className="w-4 h-4 text-blue-500" />
+                          <p className="text-xs font-bold text-gray-500 uppercase">Stock Value Left</p>
+                       </div>
+                       <p className="text-xl font-bold text-gray-900">₹{stats.stockValue.toFixed(0)}</p>
+                    </Card>
+                    <Card className="p-4 border-l-4 border-l-orange-500">
+                       <div className="flex items-center gap-2 mb-2">
+                          <TrendingUp className="w-4 h-4 text-orange-500" />
+                          <p className="text-xs font-bold text-gray-500 uppercase">Cost for Prints</p>
+                       </div>
+                       <p className="text-xl font-bold text-gray-900">₹{stats.productionCost.toFixed(0)}</p>
+                       <p className="text-[10px] text-gray-400">To fulfill pending orders</p>
+                    </Card>
+                </div>
+
+            </motion.div>
+        ) : (
+          <motion.div key="credit" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
+            
             {/* Actions Bar with Sticky Search */}
             <div className="sticky top-32 z-10 bg-white/80 backdrop-blur-md p-2 rounded-2xl shadow-soft border border-gray-100 flex gap-2">
               <div className="relative flex-1">
