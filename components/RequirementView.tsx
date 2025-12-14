@@ -20,8 +20,8 @@ export const RequirementView: React.FC<RequirementViewProps> = ({ products, orde
   const [note, setNote] = useState('');
   const [storeStocks, setStoreStocks] = useState<StoreStock[]>([]);
   
-  // State to hold the user's plan for how much to carry from where
-  const [logisticsPlan, setLogisticsPlan] = useState<Record<string, LogisticsItem>>({});
+  // State to hold the user's plan for how much to carry from where, initialized from storage
+  const [logisticsPlan, setLogisticsPlan] = useState<Record<string, LogisticsItem>>(() => v2.getLogisticsPlan());
 
   useEffect(() => {
     setNote(v2.getNeedsNote());
@@ -98,60 +98,76 @@ export const RequirementView: React.FC<RequirementViewProps> = ({ products, orde
     };
   }, [products, orders, storeStocks]);
 
-  // Auto-calculate logistics when requirements change
+  // Auto-calculate logistics when requirements change, but respect existing user edits
   useEffect(() => {
-    const newPlan: Record<string, LogisticsItem> = {};
-    
-    requirements.forEach(item => {
-      if (item.needed > 0) {
-        // Needs printing/buying, so we don't carry from store stock
-        newPlan[item.id] = { productId: item.id, carryDeepak: 0, carryDimple: 0 };
-      } else {
-        // We have enough total stock, but we need to physically carry it to the printing desk
-        
-        let remainingNeed = item.orderedQty;
-        
-        // Strategy: Take from Deepak first, then Dimple
-        let takeDeepak = 0;
-        let takeDimple = 0;
-
-        if (item.deepakStock >= remainingNeed) {
-          takeDeepak = remainingNeed;
-          remainingNeed = 0;
-        } else {
-          takeDeepak = item.deepakStock;
-          remainingNeed -= item.deepakStock;
-        }
-
-        if (remainingNeed > 0) {
-          if (item.dimpleStock >= remainingNeed) {
-            takeDimple = remainingNeed;
-            remainingNeed = 0;
+    setLogisticsPlan(prevPlan => {
+      const nextPlan = { ...prevPlan };
+      let hasChanges = false;
+      
+      requirements.forEach(item => {
+        // Only calculate default if we don't have a plan for this item yet
+        if (!nextPlan[item.id]) {
+          if (item.needed > 0) {
+            // Needs printing/buying, so we don't carry from store stock
+            nextPlan[item.id] = { productId: item.id, carryDeepak: 0, carryDimple: 0 };
           } else {
-            takeDimple = item.dimpleStock;
-            remainingNeed -= item.dimpleStock;
-          }
-        }
+            // We have enough total stock, but we need to physically carry it to the printing desk
+            
+            let remainingNeed = item.orderedQty;
+            
+            // Strategy: Take from Deepak first, then Dimple
+            let takeDeepak = 0;
+            let takeDimple = 0;
 
-        newPlan[item.id] = { 
-          productId: item.id, 
-          carryDeepak: takeDeepak, 
-          carryDimple: takeDimple 
-        };
+            if (item.deepakStock >= remainingNeed) {
+              takeDeepak = remainingNeed;
+              remainingNeed = 0;
+            } else {
+              takeDeepak = item.deepakStock;
+              remainingNeed -= item.deepakStock;
+            }
+
+            if (remainingNeed > 0) {
+              if (item.dimpleStock >= remainingNeed) {
+                takeDimple = remainingNeed;
+                remainingNeed = 0;
+              } else {
+                takeDimple = item.dimpleStock;
+                remainingNeed -= item.dimpleStock;
+              }
+            }
+
+            nextPlan[item.id] = { 
+              productId: item.id, 
+              carryDeepak: takeDeepak, 
+              carryDimple: takeDimple 
+            };
+          }
+          hasChanges = true;
+        }
+      });
+      
+      if (hasChanges) {
+        v2.saveLogisticsPlan(nextPlan);
+        return nextPlan;
       }
+      return prevPlan;
     });
-    setLogisticsPlan(newPlan);
   }, [requirements]);
 
   const updateLogistics = (productId: string, field: 'carryDeepak' | 'carryDimple', val: string) => {
     const num = parseInt(val) || 0;
-    setLogisticsPlan(prev => ({
-      ...prev,
-      [productId]: {
-        ...prev[productId],
-        [field]: num
-      }
-    }));
+    setLogisticsPlan(prev => {
+      const updated = {
+        ...prev,
+        [productId]: {
+          ...prev[productId],
+          [field]: num
+        }
+      };
+      v2.saveLogisticsPlan(updated); // Persist immediately on edit
+      return updated;
+    });
   };
 
   const getLogisticsSummary = () => {

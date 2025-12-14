@@ -14,7 +14,8 @@ const STORAGE_KEYS = {
   // New V2 Modules
   STORE_STOCK: 'print_bazar_store_stock',
   MANUAL_NEEDS: 'print_bazar_manual_needs',
-  NEEDS_NOTE: 'print_bazar_needs_note', // New key
+  NEEDS_NOTE: 'print_bazar_needs_note',
+  LOGISTICS_PLAN: 'print_bazar_logistics_plan', // New key for persisting carry plan
 };
 
 // Initial Seed Data
@@ -331,5 +332,17 @@ export const v2 = {
   deleteManualNeed: (id: string) => {
     const needs = v2.getManualNeeds();
     v2.saveManualNeeds(needs.filter(n => n.id !== id));
-  }
+  },
+
+  // --- NEW MODULE: LOGISTICS PLAN PERSISTENCE ---
+  getLogisticsPlan: (): Record<string, { productId: string; carryDeepak: number; carryDimple: number }> => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.LOGISTICS_PLAN);
+      return stored ? JSON.parse(stored) : {};
+    } catch (e) { return {}; }
+  },
+  
+  saveLogisticsPlan: (plan: Record<string, any>) => {
+    localStorage.setItem(STORAGE_KEYS.LOGISTICS_PLAN, JSON.stringify(plan));
+  },
 };
