@@ -4,7 +4,7 @@ import { UnpaidWriting } from '../types';
 import { v2 } from '../services/storage';
 import { Button, Card, Input, Modal, Badge, Textarea } from './ui/Common';
 import { RoughWork } from './RoughWork'; // Integrated Rough Work
-import { Plus, Trash2, CheckCircle, AlertTriangle, Book, PenTool, Search, X } from 'lucide-react';
+import { Plus, Trash2, CheckCircle, AlertTriangle, Book, PenTool, Search, X, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const UnpaidWritingsManager: React.FC = () => {
@@ -80,7 +80,7 @@ export const UnpaidWritingsManager: React.FC = () => {
         >
           <Book className="w-4 h-4" /> Credit Book
           {unpaidCount > 0 && (
-             <span className="bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full text-[10px] min-w-[1.25rem] text-center">
+             <span className="bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full text-[10px] min-w-[1.25rem] text-center font-bold">
                {unpaidCount}
              </span>
           )}
@@ -102,6 +102,8 @@ export const UnpaidWritingsManager: React.FC = () => {
            </motion.div>
         ) : (
           <motion.div key="credit" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="space-y-6">
+            
+            {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Card className="p-6 bg-red-50 border-red-100 flex items-center justify-between">
                 <div>
@@ -123,8 +125,8 @@ export const UnpaidWritingsManager: React.FC = () => {
               </Card>
             </div>
 
-            {/* Actions Bar */}
-            <div className="flex flex-col sm:flex-row gap-3 bg-white p-3 rounded-2xl shadow-soft border border-gray-100 sticky top-36 z-10">
+            {/* Actions Bar with Sticky Search */}
+            <div className="sticky top-32 z-10 bg-white/80 backdrop-blur-md p-2 rounded-2xl shadow-soft border border-gray-100 flex gap-2">
               <div className="relative flex-1">
                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
                  <input 
@@ -140,12 +142,14 @@ export const UnpaidWritingsManager: React.FC = () => {
                    </button>
                  )}
               </div>
-              <Button onClick={() => setIsModalOpen(true)} icon={Plus} className="shadow-lg shadow-brand-500/20 whitespace-nowrap">Add Record</Button>
+              <Button onClick={() => setIsModalOpen(true)} icon={Plus} className="shadow-lg shadow-brand-500/20 whitespace-nowrap shrink-0">
+                Add Record
+              </Button>
             </div>
 
             <div className="grid gap-3">
               {filteredWritings.map((item) => (
-                <Card key={item.id} className={`p-4 border-l-4 ${item.status === 'UNPAID' ? 'border-l-red-500' : 'border-l-emerald-500'} transition-all`}>
+                <Card key={item.id} className={`p-4 border-l-4 ${item.status === 'UNPAID' ? 'border-l-red-500' : 'border-l-emerald-500'} transition-all hover:shadow-md`}>
                   <div className="flex justify-between items-start">
                     <div>
                       <div className="flex items-center gap-2 mb-1">
@@ -154,7 +158,10 @@ export const UnpaidWritingsManager: React.FC = () => {
                         {item.relatedOrderId && <Badge color="blue">Order Linked</Badge>}
                       </div>
                       <p className="text-sm text-gray-500">{item.description}</p>
-                      <p className="text-xs text-gray-400 mt-1">{new Date(item.createdAt).toLocaleDateString()}</p>
+                      <div className="flex items-center gap-2 mt-2">
+                         <Calendar className="w-3 h-3 text-gray-400" />
+                         <p className="text-xs text-gray-400">{new Date(item.createdAt).toLocaleDateString()} • {new Date(item.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                      </div>
                     </div>
                     <div className="text-right">
                       <p className="text-xl font-bold text-gray-900">₹{item.amount}</p>
@@ -169,7 +176,7 @@ export const UnpaidWritingsManager: React.FC = () => {
                 </Card>
               ))}
               {filteredWritings.length === 0 && (
-                <div className="text-center py-10 text-gray-400 bg-white rounded-2xl border border-dashed border-gray-200">
+                <div className="text-center py-12 text-gray-400 bg-white rounded-2xl border border-dashed border-gray-200">
                    {searchTerm ? 'No matching records found.' : 'No unpaid records found.'}
                 </div>
               )}

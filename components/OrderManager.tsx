@@ -145,7 +145,25 @@ export const OrderManager: React.FC<OrderManagerProps> = ({ orders, products, on
     if (!order.customerPhone) return;
     let cleanPhone = order.customerPhone.replace(/\D/g, '');
     if (cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
-    const text = `Namaste ${order.customerName}, your order #${order.id.slice(0,5)} from PrintBazar is ready. Total: ₹${order.totalAmount.toFixed(0)}`;
+    
+    const text = `Namaste from Print Bazar,
+Your order is ready. ✅
+
+Please confirm whether you will be coming tomorrow or not.
+
+💰 Total Bill: ₹${order.totalAmount.toFixed(0)}
+
+📍 Collection Address:
+Bus route board jha bus routes likhe hote hai and driver bethte hai uske just pass pani ki tanki hai vha.
+
+⏰ Important:
+Please collect files before going in the class and if u are already in class make sure apko koi director ya teacher roke na.
+Agr koi bhi apko rokta hai toh yeh mat bolna ki Print Bazar wale bhaiya s print lene jaa rhe hai,
+just tell any of ur personal reasons as if u say that there will be lot of questions.
+
+Thank you,
+Print Bazar`;
+
     const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
     window.open(url, '_blank');
   };

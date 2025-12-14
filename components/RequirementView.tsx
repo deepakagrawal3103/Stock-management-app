@@ -4,7 +4,7 @@ import { Product, Order, OrderStatus } from '../types';
 import { v2 } from '../services/storage';
 import { Card, Textarea, Badge } from './ui/Common';
 import { NeedSection } from './NeedSection'; // Integrated Manual Needs
-import { Printer, AlertTriangle, Package, CheckCircle2, ListChecks, FileDigit, Info } from 'lucide-react';
+import { Printer, AlertTriangle, Package, CheckCircle2, ListChecks, FileDigit, Info, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface RequirementViewProps {
@@ -26,9 +26,23 @@ export const RequirementView: React.FC<RequirementViewProps> = ({ products, orde
     v2.saveNeedsNote(val);
   };
 
-  const { requirements, totalOrderedCost, totalPrintingCost, pendingOrderCount } = useMemo(() => {
+  const { requirements, totalOrderedCost, totalPrintingCost, pendingOrderCount, dateRange } = useMemo(() => {
     // 1. Get ALL Pending orders (regardless of date)
     const activeOrders = orders.filter(o => o.status === OrderStatus.PENDING);
+    
+    // Calculate Date Range for reassurance
+    let minDate: Date | null = null;
+    let maxDate: Date | null = null;
+
+    activeOrders.forEach(o => {
+      const d = new Date(o.date);
+      if (!minDate || d < minDate) minDate = d;
+      if (!maxDate || d > maxDate) maxDate = d;
+    });
+
+    const dateRangeStr = minDate && maxDate 
+      ? `${minDate.toLocaleDateString()} - ${maxDate.toLocaleDateString()}` 
+      : 'All Time';
     
     // 2. Calculate Total Demand per Product across ALL pending orders
     const productDemand: Record<string, { totalQty: number, orderCount: number }> = {};
@@ -41,8 +55,6 @@ export const RequirementView: React.FC<RequirementViewProps> = ({ products, orde
             productDemand[item.productId] = { totalQty: 0, orderCount: 0 };
           }
           productDemand[item.productId].totalQty += item.quantity;
-          // We increment order count slightly differently if we wanted unique orders per product, 
-          // but here we just track demand.
         }
       });
     });
@@ -55,9 +67,6 @@ export const RequirementView: React.FC<RequirementViewProps> = ({ products, orde
       const orderedQty = demandData.totalQty;
       const currentStock = p.quantity;
       
-      // The "To Print" or "Shortage" is: Needed - Stock
-      // If we have 10 ordered and 4 stock, we need to print 6.
-      // If we have 10 ordered and 15 stock, we need to print 0.
       const needed = Math.max(0, orderedQty - currentStock);
 
       if (orderedQty > 0) orderedCost += (orderedQty * p.costPrice);
@@ -72,16 +81,16 @@ export const RequirementView: React.FC<RequirementViewProps> = ({ products, orde
         needed: needed,         // Net Shortage
         costPrice: p.costPrice
       };
-    }).filter(item => item.orderedQty > 0); // Only show items that are actually in pending orders
+    }).filter(item => item.orderedQty > 0); 
 
-    // Sort: Items with shortage (needed > 0) first
     list.sort((a, b) => b.needed - a.needed);
 
     return { 
       requirements: list, 
       totalOrderedCost: orderedCost, 
       totalPrintingCost: printingCost,
-      pendingOrderCount: activeOrders.length
+      pendingOrderCount: activeOrders.length,
+      dateRange: dateRangeStr
     };
   }, [products, orders]);
 
@@ -116,14 +125,18 @@ export const RequirementView: React.FC<RequirementViewProps> = ({ products, orde
           <motion.div key="auto" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="space-y-6">
             
             {/* Context Banner */}
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-start gap-3">
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-start gap-3 shadow-sm">
                <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
-               <div>
-                 <p className="text-sm text-blue-800 font-medium">
-                   Calculated from <span className="font-bold">{pendingOrderCount} Pending Orders</span> (All dates).
+               <div className="flex-1">
+                 <p className="text-sm text-blue-800 font-bold">
+                   Aggregating {pendingOrderCount} Pending Orders
                  </p>
-                 <p className="text-xs text-blue-600">
-                   Shows total quantity required vs what you have in stock.
+                 <div className="flex items-center gap-2 text-xs text-blue-600 mt-0.5">
+                   <Calendar className="w-3 h-3" />
+                   <span>Orders from: {dateRange}</span>
+                 </div>
+                 <p className="text-xs text-blue-600/80 mt-1">
+                   Logic: Sum of all items in pending orders vs Current Stock = Shortage.
                  </p>
                </div>
             </div>
@@ -193,7 +206,6 @@ export const RequirementView: React.FC<RequirementViewProps> = ({ products, orde
                       )}
                     </div>
                     
-                    {/* The 3 Columns requested by User */}
                     <div className="grid grid-cols-2 gap-2 text-center bg-gray-50 rounded-lg p-2 border border-gray-100">
                       <div className="border-r border-gray-200">
                           <div className="text-[10px] text-gray-400 font-bold uppercase">Total Required</div>
