@@ -345,4 +345,102 @@ export const v2 = {
   saveLogisticsPlan: (plan: Record<string, any>) => {
     localStorage.setItem(STORAGE_KEYS.LOGISTICS_PLAN, JSON.stringify(plan));
   },
+
+  // --- LOGISTICS STOCK PROCESSING (When Order Completes) ---
+  processOrderCompletionStock: (order: Order) => {
+    const stocks = v2.getStoreStocks();
+    const plan = v2.getLogisticsPlan();
+    const products = getProducts();
+
+    order.items.forEach(item => {
+      if (item.isCustom) return; // Skip custom items (no stock)
+
+      // 1. Identify Deduction Source (Deepak vs Dimple)
+      let deductDeepak = 0;
+      let deductDimple = 0;
+      let qtyToDeduct = item.quantity;
+      const itemPlan = plan[item.productId];
+
+      if (itemPlan) {
+        // A plan exists, try to follow it
+        // Priority: Take from Carry Deepak first
+        const plannedDeepak = itemPlan.carryDeepak || 0;
+        const takeDeepak = Math.min(qtyToDeduct, plannedDeepak);
+        deductDeepak += takeDeepak;
+        qtyToDeduct -= takeDeepak;
+
+        // Then take from Carry Dimple
+        const plannedDimple = itemPlan.carryDimple || 0;
+        const takeDimple = Math.min(qtyToDeduct, plannedDimple);
+        deductDimple += takeDimple;
+        qtyToDeduct -= takeDimple;
+        
+        // Update Plan (Consume it, since order is fulfilled)
+        itemPlan.carryDeepak = Math.max(0, plannedDeepak - takeDeepak);
+        itemPlan.carryDimple = Math.max(0, plannedDimple - takeDimple);
+      }
+
+      // If still need qty (unplanned or plan exhausted), default to Deepak (Main Store)
+      if (qtyToDeduct > 0) {
+         deductDeepak += qtyToDeduct; 
+      }
+
+      // 2. Update Specific Store Stocks
+      let storeEntry = stocks.find(s => s.productId === item.productId);
+      if (!storeEntry) {
+         // Create if missing (assuming all existing is in Deepak)
+         const p = products.find(p => p.id === item.productId);
+         storeEntry = { 
+           productId: item.productId, 
+           deepakStock: p ? p.quantity : 0, 
+           dimpleStock: 0, 
+           lastUpdated: new Date().toISOString() 
+         };
+         stocks.push(storeEntry);
+      }
+      
+      storeEntry.deepakStock = Math.max(0, storeEntry.deepakStock - deductDeepak);
+      storeEntry.dimpleStock = Math.max(0, storeEntry.dimpleStock - deductDimple);
+
+      // 3. Update Global Product Qty
+      const prod = products.find(p => p.id === item.productId);
+      if (prod) {
+        prod.quantity = Math.max(0, prod.quantity - item.quantity);
+      }
+    });
+    
+    // Persist all changes
+    v2.saveStoreStocks(stocks);
+    v2.saveLogisticsPlan(plan);
+    saveProducts(products);
+  },
+
+  // Reverse operation (if order marked incomplete)
+  processOrderReversionStock: (order: Order) => {
+    const stocks = v2.getStoreStocks();
+    const products = getProducts();
+
+    order.items.forEach(item => {
+      if (item.isCustom) return;
+      
+      // We don't know exactly where it came from, so we default return to Deepak (Main Store)
+      // to avoid complicating the logic.
+      let storeEntry = stocks.find(s => s.productId === item.productId);
+      if (!storeEntry) {
+         const p = products.find(p => p.id === item.productId);
+         storeEntry = { productId: item.productId, deepakStock: p ? p.quantity : 0, dimpleStock: 0, lastUpdated: new Date().toISOString() };
+         stocks.push(storeEntry);
+      }
+      
+      storeEntry.deepakStock += item.quantity;
+      
+      const prod = products.find(p => p.id === item.productId);
+      if (prod) {
+        prod.quantity += item.quantity;
+      }
+    });
+
+    v2.saveStoreStocks(stocks);
+    saveProducts(products);
+  }
 };

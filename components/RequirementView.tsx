@@ -3,7 +3,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { Product, Order, OrderStatus, StoreStock } from '../types';
 import { v2 } from '../services/storage';
 import { Card, Textarea, Badge } from './ui/Common';
-import { CheckCircle2, FileDigit, Info, Calendar, Truck, AlertTriangle } from 'lucide-react';
+import { CheckCircle2, FileDigit, Info, Calendar, Truck, AlertTriangle, RefreshCw } from 'lucide-react';
 
 interface RequirementViewProps {
   products: Product[];
@@ -25,8 +25,12 @@ export const RequirementView: React.FC<RequirementViewProps> = ({ products, orde
 
   useEffect(() => {
     setNote(v2.getNeedsNote());
-    setStoreStocks(v2.getStoreStocks());
   }, []);
+
+  // Reload store stocks whenever products change (e.g., after order completion or manual stock update)
+  useEffect(() => {
+    setStoreStocks(v2.getStoreStocks());
+  }, [products]);
 
   const handleNoteChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
@@ -66,15 +70,25 @@ export const RequirementView: React.FC<RequirementViewProps> = ({ products, orde
     const list = products.map(p => {
       const demandData = productDemand[p.id] || { totalQty: 0, orderCount: 0 };
       const orderedQty = demandData.totalQty;
-      const currentStock = p.quantity;
+      const currentStock = p.quantity; // Source of Truth
       
       const needed = Math.max(0, orderedQty - currentStock);
 
       // Find store specific details
       const storeData = storeStocks.find(s => s.productId === p.id);
-      // Default to assuming all stock is in Deepak if not specified, for safety
-      const deepakStock = storeData ? storeData.deepakStock : p.quantity;
-      const dimpleStock = storeData ? storeData.dimpleStock : 0;
+      
+      // Calculate split dynamically to match currentStock (Source of Truth)
+      // Assumption: Dimple stock is static/reserved, sales happen from Deepak (Main)
+      // This fixes the issue where global stock decreases on sale but store split remains old.
+      let dimpleStock = storeData ? storeData.dimpleStock : 0;
+      
+      // Safety: If dimple stock is recorded as higher than total current stock, clamp it.
+      if (dimpleStock > currentStock) {
+        dimpleStock = currentStock;
+      }
+      
+      // Deepak stock is the remainder
+      const deepakStock = currentStock - dimpleStock;
 
       return {
         id: p.id,
@@ -170,6 +184,53 @@ export const RequirementView: React.FC<RequirementViewProps> = ({ products, orde
     });
   };
 
+  const handleResetLogistics = () => {
+    if (window.confirm("Recalculate logistics plan? This will reset your manual carry edits based on current stock.")) {
+      const freshPlan: Record<string, LogisticsItem> = {};
+      
+      requirements.forEach(item => {
+          if (item.needed > 0) {
+             // Shortage: No carry plan needed (or 0)
+             freshPlan[item.id] = { productId: item.id, carryDeepak: 0, carryDimple: 0 };
+          } else {
+             // We have enough stock total, distribute it
+             let remainingNeed = item.orderedQty;
+             let takeDeepak = 0;
+             let takeDimple = 0;
+
+             // Logic: Deepak First
+             if (item.deepakStock >= remainingNeed) {
+                takeDeepak = remainingNeed;
+                remainingNeed = 0;
+             } else {
+                takeDeepak = item.deepakStock;
+                remainingNeed -= item.deepakStock;
+             }
+
+             // Then Dimple
+             if (remainingNeed > 0) {
+                if (item.dimpleStock >= remainingNeed) {
+                   takeDimple = remainingNeed;
+                   remainingNeed = 0;
+                } else {
+                   takeDimple = item.dimpleStock;
+                   remainingNeed -= item.dimpleStock;
+                }
+             }
+
+             freshPlan[item.id] = { 
+               productId: item.id, 
+               carryDeepak: takeDeepak, 
+               carryDimple: takeDimple 
+             };
+          }
+      });
+      
+      setLogisticsPlan(freshPlan);
+      v2.saveLogisticsPlan(freshPlan);
+    }
+  };
+
   const getLogisticsSummary = () => {
     const deepakList: Array<{name: string, qty: number}> = [];
     const dimpleList: Array<{name: string, qty: number}> = [];
@@ -224,11 +285,19 @@ export const RequirementView: React.FC<RequirementViewProps> = ({ products, orde
       {/* List */}
       <div className="bg-white rounded-2xl shadow-soft border border-gray-100 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
-          <h3 className="font-bold text-gray-900 flex items-center gap-2">
-            <FileDigit className="w-4 h-4 text-gray-500" />
-            Requirement Calculation
-          </h3>
-          <Badge>{requirements.length} Items</Badge>
+          <div className="flex items-center gap-2">
+            <h3 className="font-bold text-gray-900 flex items-center gap-2">
+              <FileDigit className="w-4 h-4 text-gray-500" />
+              Requirement Calculation
+            </h3>
+            <Badge>{requirements.length} Items</Badge>
+          </div>
+          <button 
+             onClick={handleResetLogistics}
+             className="text-xs flex items-center gap-1 text-blue-600 hover:text-blue-800 font-bold bg-blue-50 hover:bg-blue-100 px-2 py-1.5 rounded-lg transition-colors border border-blue-200"
+          >
+             <RefreshCw className="w-3 h-3" /> Reset Plan
+          </button>
         </div>
 
         {/* Mobile View */}

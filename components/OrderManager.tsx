@@ -416,7 +416,10 @@ Print Bazar`;
                             <Button variant="ghost" size="sm" onClick={() => startEdit(order)} icon={Edit} className="h-8 w-8 p-0 rounded-full text-slate-400 hover:text-brand-600 hover:bg-brand-50" />
                             
                             {order.customerPhone && (
-                              <Button variant="ghost" size="sm" onClick={() => handleWhatsApp(order)} icon={MessageCircle} className="h-8 w-8 p-0 rounded-full text-slate-400 hover:text-green-500 hover:bg-green-50" />
+                              <>
+                                <Button variant="ghost" size="sm" onClick={() => window.open(`tel:${order.customerPhone}`, '_self')} icon={Phone} className="h-8 w-8 p-0 rounded-full text-slate-400 hover:text-blue-500 hover:bg-blue-50" />
+                                <Button variant="ghost" size="sm" onClick={() => handleWhatsApp(order)} icon={MessageCircle} className="h-8 w-8 p-0 rounded-full text-slate-400 hover:text-green-500 hover:bg-green-50" />
+                              </>
                             )}
                             <Button variant="ghost" size="sm" onClick={() => onDeleteOrder(order.id)} icon={Trash2} className="h-8 w-8 p-0 rounded-full text-slate-300 hover:text-red-600 hover:bg-red-50" />
                         </div>

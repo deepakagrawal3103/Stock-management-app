@@ -68,21 +68,27 @@ const App: React.FC = () => {
     let updatedOrders;
     if (isEdit) {
       const oldOrder = orders.find(o => o.id === order.id);
-      if (oldOrder?.status === OrderStatus.COMPLETED) {
-         oldOrder.items.forEach(item => {
-           if (!item.isCustom) Storage.updateProductStock(item.productId, item.quantity);
-         });
-         if (order.status === OrderStatus.COMPLETED) {
-            order.items.forEach(item => {
-              if (!item.isCustom) Storage.updateProductStock(item.productId, -item.quantity);
-            });
-         }
+      
+      // Stock adjustment if status changed during edit
+      if (oldOrder?.status === OrderStatus.COMPLETED && order.status !== OrderStatus.COMPLETED) {
+         // Revert stock (add back)
+         Storage.v2.processOrderReversionStock(oldOrder);
+         setProducts(Storage.getProducts());
+      } else if (oldOrder?.status !== OrderStatus.COMPLETED && order.status === OrderStatus.COMPLETED) {
+         // Deduct stock (smart logic)
+         Storage.v2.processOrderCompletionStock(order);
          setProducts(Storage.getProducts());
       }
+      
       updatedOrders = orders.map(o => o.id === order.id ? order : o);
       showToast('Order updated');
     } else {
       updatedOrders = [...orders, order];
+      // If creating a new order directly as completed (e.g. POS), deduct stock immediately
+      if (order.status === OrderStatus.COMPLETED) {
+         Storage.v2.processOrderCompletionStock(order);
+         setProducts(Storage.getProducts());
+      }
       showToast('New order created');
     }
     setOrders(updatedOrders);
@@ -96,15 +102,12 @@ const App: React.FC = () => {
     const order = orders[orderIndex];
     const oldStatus = order.status;
     
+    // Update Stock Logic using V2 Smart Processor
     if (status === OrderStatus.COMPLETED && oldStatus !== OrderStatus.COMPLETED) {
-       order.items.forEach(item => {
-         if (!item.isCustom) Storage.updateProductStock(item.productId, -item.quantity);
-       });
+       Storage.v2.processOrderCompletionStock(order);
        setProducts(Storage.getProducts());
     } else if (oldStatus === OrderStatus.COMPLETED && status !== OrderStatus.COMPLETED) {
-       order.items.forEach(item => {
-         if (!item.isCustom) Storage.updateProductStock(item.productId, item.quantity);
-       });
+       Storage.v2.processOrderReversionStock(order);
        setProducts(Storage.getProducts());
     }
 
@@ -126,9 +129,7 @@ const App: React.FC = () => {
     if (confirm('Delete this order?')) {
       const order = orders.find(o => o.id === id);
       if (order?.status === OrderStatus.COMPLETED) {
-        order.items.forEach(item => {
-           if (!item.isCustom) Storage.updateProductStock(item.productId, item.quantity);
-        });
+        Storage.v2.processOrderReversionStock(order);
         setProducts(Storage.getProducts());
       }
       const updated = orders.filter(o => o.id !== id);
